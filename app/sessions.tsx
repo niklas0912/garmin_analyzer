@@ -99,6 +99,12 @@ export default function SessionsScreen() {
             .map((l: any) => l.gap)
             .filter((v: any) => v != null && v > 0)
             .reduce((a: number, b: number, _: any, arr: any[]) => a + b / arr.length, 0) || null;
+        
+          const totalDuration = item.laps.reduce((a: number, l: any) => a + (l.duration || 0), 0);
+          const totalDistance = item.laps.reduce((a: number, l: any) => a + (l.distance || 0), 0);
+          const minutes = Math.floor(totalDuration / 60);
+          const seconds = Math.round(totalDuration % 60);
+        
           return (
             <TouchableOpacity
               style={s.card}
@@ -122,8 +128,12 @@ export default function SessionsScreen() {
                   <Text style={[s.statValue, { color: '#4DB8FF' }]}>{formatPace(avgGap)}</Text>
                 </View>
                 <View style={s.stat}>
-                  <Text style={s.statLabel}>Runden</Text>
-                  <Text style={s.statValue}>{item.laps.length}</Text>
+                  <Text style={s.statLabel}>Zeit</Text>
+                  <Text style={s.statValue}>{minutes}:{seconds.toString().padStart(2, '0')}</Text>
+                </View>
+                <View style={s.stat}>
+                  <Text style={s.statLabel}>km</Text>
+                  <Text style={s.statValue}>{(totalDistance / 1000).toFixed(2)}</Text>
                 </View>
               </View>
             </TouchableOpacity>

@@ -29,16 +29,13 @@ function readFieldValue(view, offset, size, baseType, le) {
   } catch { return 0; }
 }
 
-
-
 function parseFit(buffer) {
-  console.log('Buffer size:', buffer.byteLength);
   const view = new DataView(buffer);
   const headerSize = view.getUint8(0);
-  console.log('Header size:', headerSize);
   let offset = headerSize;
   const localDefs = {};
   const laps = [];
+  let sessionDate = null;
 
   while (offset < buffer.byteLength - 2) {
     const recordHeader = view.getUint8(offset);
@@ -82,7 +79,6 @@ function parseFit(buffer) {
       }
 
       localDefs[localMsgNum] = { globalMsgNum, fields, size, littleEndian };
-      console.log(`Def: local=${localMsgNum} global=${globalMsgNum} fields=${fields.length} size=${size}`);
 
     } else {
       const def = localDefs[localMsgNum];
@@ -90,83 +86,71 @@ function parseFit(buffer) {
 
       const msgStart = offset;
 
-      if (def.globalMsgNum === 19) {
-        console.log(`Lap Message bei offset=${msgStart}, def.size=${def.size}`);
-        let rawBytes = '';
-        for (let i = 0; i < 8; i++) {
-          rawBytes += view.getUint8(msgStart + i) + ' ';
-        }
-        console.log('Raw bytes:', rawBytes);
-        // Direkt nach console.log('Raw bytes:...')
-        const testVal = view.getUint32(msgStart, true); // little endian
-        const testVal2 = view.getUint32(msgStart, false); // big endian
-        console.log('Direct read LE:', testVal, 'BE:', testVal2);
-        const lap = {};
+      // Session Message → Datum auslesen
+      if (def.globalMsgNum === 18) {
         let fieldOffset = msgStart;
-        let isFirstLap = laps.length === 0; // nur erste Lap loggen
-
         for (const f of def.fields) {
           const val = readFieldValue(view, fieldOffset, f.fieldSize, f.baseType, def.littleEndian);
-        //  if ([7, 9, 25, 111].includes(f.fieldNum)) {
-         //   console.log(`Feld ${f.fieldNum}: val=${val}, size=${f.fieldSize}`);
-         // }
-         if (isFirstLap) {
-          console.log(`  Feld ${f.fieldNum} @ ${fieldOffset} size=${f.fieldSize} val=${val}`);
+          if (f.fieldNum === 253 && val > 0) {
+            // FIT Timestamp: Sekunden seit 31.12.1989 00:00:00 UTC
+            sessionDate = new Date((val + 631065600) * 1000);
+          }
+          fieldOffset += f.fieldSize;
         }
+      }
+
+      // Lap Message
+      if (def.globalMsgNum === 19) {
+        const lap = {};
+        let fieldOffset = msgStart;
+        for (const f of def.fields) {
+          const val = readFieldValue(view, fieldOffset, f.fieldSize, f.baseType, def.littleEndian);
           switch (f.fieldNum) {
             case 7:   lap.total_elapsed_time = val / 1000; break;
             case 9:   lap.total_distance = val / 100; break;
-            case 111: lap.avg_speed = val / 1000; break;
+            case 111: lap.avg_speed = val / 1500; break;
             case 18:  lap.avg_heart_rate = val; break;
             case 17:  lap.max_heart_rate = val; break;
-            case 14:  lap.avg_grade = val / 100; break;
             case 25:  lap.lap_trigger = val; break;
           }
           fieldOffset += f.fieldSize;
         }
-        console.log('lap_trigger:', lap.lap_trigger, 'dist:', lap.total_distance);
         if (lap.lap_trigger === 1) {
           laps.push(lap);
         }
       }
 
       offset = msgStart + def.size;
-      
     }
   }
 
-  return laps;
+  return { laps, sessionDate };
 }
-
 
 
 export async function parseFitFile(uri, workoutName) {
   const base64 = await FileSystem.readAsStringAsync(uri, {
     encoding: 'base64',
+  });
 
-});
-
-  const binary = atob(base64);
-  const buffer = new ArrayBuffer(binary.length);
-  const view = new Uint8Array(buffer);
   const binaryString = atob(base64);
+  const buffer = new ArrayBuffer(binaryString.length);
   const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < binary.length; i++) view[i] = binary.charCodeAt(i);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i) & 0xff;
+  }
 
-  // Prüfe erste Bytes
-  const check = new DataView(buffer);
-  console.log('Erste Bytes:', check.getUint8(0), check.getUint8(1), check.getUint8(2), check.getUint8(3));
-  const rawLaps = parseFit(buffer);
+  const { laps: rawLaps, sessionDate } = parseFit(buffer);
 
   const laps = rawLaps.map((lap, i) => {
     const avgSpeed = lap.avg_speed || 0;
     const rawPaceSpm = avgSpeed > 0 ? 1 / avgSpeed : null;
-  
+
     return {
       index: i + 1,
       avgHr: lap.avg_heart_rate > 0 && lap.avg_heart_rate < 220 ? Math.round(lap.avg_heart_rate) : null,
       maxHr: lap.max_heart_rate > 0 && lap.max_heart_rate < 220 ? Math.round(lap.max_heart_rate) : null,
-      gap: rawPaceSpm,  // vorerst ohne GAP-Korrektur, einfach rohe Pace
+      gap: rawPaceSpm,
       distance: lap.total_distance || 0,
       duration: lap.total_elapsed_time || 0,
     };
@@ -174,7 +158,7 @@ export async function parseFitFile(uri, workoutName) {
 
   return {
     name: workoutName,
-    date: new Date(),
+    date: sessionDate || new Date(),
     laps,
     id: `${workoutName}_${Date.now()}`,
   };
