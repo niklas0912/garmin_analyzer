@@ -5,36 +5,83 @@ import { LineChart } from 'react-native-gifted-charts';
 import { formatPace } from '../utils/fitParser';
 import { loadWorkoutsByName } from '../utils/storage';
 
+// Breite des Charts: Bildschirmbreite abzüglich horizontalem Padding (2x 32px = 64px)
 const W = Dimensions.get('window').width - 64;
 
+/**
+ * Berechnet den Durchschnitt eines Arrays von Zahlen.
+ * Filtert dabei null/undefined sowie Werte <= 0 heraus (z.B. fehlerhafte
+ * oder nicht erfasste Messwerte aus den Lap-Daten).
+ *
+ * @param arr - Array von Werten (z.B. Pace- oder Herzfrequenzwerte pro Lap)
+ * @returns Der Durchschnitt der gültigen Werte, oder null falls keine vorhanden sind
+ */
 function mean(arr: any[]) {
   const v = arr.filter(x => x != null && x > 0);
   return v.length ? v.reduce((a: number, b: number) => a + b, 0) / v.length : null;
 }
 
-// Konvertiert sec/meter → sec/km gerundet
+/**
+ * Konvertiert einen Pace-Wert von Sekunden/Meter in Sekunden/Kilometer.
+ * Wird benötigt, weil die Rohdaten (GAP = Grade Adjusted Pace) in sec/m
+ * vorliegen, die Chart- und Tabellenanzeige aber in der gebräuchlicheren
+ * Einheit sec/km erfolgen soll.
+ *
+ * @param val - Pace in Sekunden pro Meter, oder null wenn nicht vorhanden
+ * @returns Gerundete Pace in Sekunden pro Kilometer (0 falls val null ist)
+ */
 function toSecKm(val: number | null) {
-  return val ? Math.round(val * 1000) : 0;
+  return val ? Math.round(val * 1000/60) : 0;
 }
 
+/**
+ * Definiert die auswählbaren Metriken für die Tab-Leiste oben im Screen.
+ * Jede Metrik hat einen internen Key (zum Filtern/Vergleichen), ein
+ * Anzeige-Label und eine Farbe, die konsistent für Chart, Tabs und Legende
+ * verwendet wird.
+ */
 const METRICS = [
   { key: 'gap',   label: 'Pace (GAP)',  color: '#4DB8FF' },
   { key: 'avgHr', label: 'Ø HF',        color: '#FF4D4D' },
   { key: 'maxHr', label: 'Max HF',      color: '#FF4D4D' },
 ];
 
+/**
+ * ProgressScreen
+ *
+ * Zeigt den Trainingsfortschritt für einen bestimmten Workout-Namen an,
+ * der als Route-Parameter übergeben wird (z.B. "5km Tempolauf").
+ *
+ * Der Screen besteht aus drei Teilen:
+ * 1. Tab-Leiste zum Umschalten zwischen Pace (GAP), Ø Herzfrequenz und
+ *    Max. Herzfrequenz
+ * 2. Liniendiagramm mit dem zeitlichen Verlauf der gewählten Metrik
+ *    (bei Pace: drei Linien für Durchschnitt/schnellste/langsamste Runde)
+ * 3. Tabelle mit allen Sessions inkl. Datum, Ø GAP, schnellster und
+ *    langsamster Runde
+ */
 export default function ProgressScreen() {
+  // Workout-Name kommt als Query-Parameter aus der Navigation (expo-router)
   const { workout } = useLocalSearchParams();
+
+  // Alle gespeicherten Sessions für diesen Workout-Namen
   const [sessions, setSessions] = useState([]);
+
+  // Aktuell in den Tabs ausgewählte Metrik (Standard: Pace)
   const [metric, setMetric] = useState('gap');
 
+  // Lädt beim Mounten der Komponente alle bisherigen Workouts mit
+  // passendem Namen aus dem lokalen Speicher.
   useEffect(() => {
     loadWorkoutsByName(workout as string).then(setSessions);
   }, []);
 
+  // Metadaten (Label, Farbe) der aktuell gewählten Metrik
   const current = METRICS.find(m => m.key === metric)!;
 
-  // Pace-Chart: drei Linien
+  // --- Datenaufbereitung für das Pace-Chart (3 Linien) ---
+
+  // Linie 1: Durchschnittliche GAP-Pace pro Session, mit Datum als X-Achsen-Label
   const avgPaceData = sessions.map((w: any) => {
     const avg = mean(w.laps.map((l: any) => l.gap));
     return {
@@ -43,19 +90,23 @@ export default function ProgressScreen() {
     };
   });
 
+  // Linie 2: Schnellste Runde (Minimum-Pace) pro Session
   const fastestData = sessions.map((w: any) => {
     const vals = w.laps.map((l: any) => l.gap).filter((v: any) => v != null && v > 0);
     const fastest = vals.length ? Math.min(...vals) : null;
     return { value: toSecKm(fastest) };
   });
 
+  // Linie 3: Langsamste Runde (Maximum-Pace) pro Session
   const slowestData = sessions.map((w: any) => {
     const vals = w.laps.map((l: any) => l.gap).filter((v: any) => v != null && v > 0);
     const slowest = vals.length ? Math.max(...vals) : null;
     return { value: toSecKm(slowest) };
   });
 
-  // HF-Chart: eine Linie
+  // --- Datenaufbereitung für das Herzfrequenz-Chart (1 Linie) ---
+  // Je nach gewählter Metrik wird entweder die maximale HF pro Session
+  // (Max HF) oder die durchschnittliche HF über alle Laps (Ø HF) berechnet.
   const hrData = sessions.map((w: any) => {
     let val: number;
     if (metric === 'maxHr') {
@@ -70,14 +121,16 @@ export default function ProgressScreen() {
     };
   });
 
+  // Steuert, ob das Pace-Chart (3 Linien) oder das HF-Chart (1 Linie) angezeigt wird
   const isPace = metric === 'gap';
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
+      {/* Kopfbereich: Workout-Name und Anzahl der erfassten Sessions */}
       <Text style={s.title}>{workout}</Text>
       <Text style={s.subtitle}>{sessions.length} Sessions</Text>
 
-      {/* Tabs */}
+      {/* Tabs zum Umschalten der angezeigten Metrik */}
       <View style={s.tabs}>
         {METRICS.map(m => (
           <TouchableOpacity
@@ -90,13 +143,14 @@ export default function ProgressScreen() {
         ))}
       </View>
 
-      {/* Chart */}
+      {/* Chart-Bereich: benötigt mindestens 2 Sessions für eine sinnvolle Kurve */}
       <View style={s.chartCard}>
         {sessions.length >= 2 ? (
           <>
             {isPace ? (
+              // --- Pace-Ansicht: 3 Linien (Ø, schnellste, langsamste) ---
               <>
-                {/* Legende */}
+                {/* Farblegende zur Zuordnung der drei Linien */}
                 <View style={s.legend}>
                   <View style={s.legendItem}>
                     <View style={[s.dot, { backgroundColor: '#4DB8FF' }]} />
@@ -139,9 +193,11 @@ export default function ProgressScreen() {
                   hideOrigin
                 
                 />
+                {/* Hinweis, da bei Pace ein niedrigerer Wert besser ist (im Gegensatz zu z.B. Distanz) */}
                 <Text style={s.note}>Niedrigerer Wert = schnellere Pace</Text>
               </>
             ) : (
+              // --- Herzfrequenz-Ansicht: 1 Linie (Ø HF oder Max HF) ---
               <LineChart
                 data={hrData}
                 width={W}
@@ -164,17 +220,20 @@ export default function ProgressScreen() {
             )}
           </>
         ) : (
+          // Fallback, solange nicht genug Sessions für eine Kurve vorliegen
           <Text style={s.empty}>Mindestens 2 Sessions nötig für eine Kurve.</Text>
         )}
       </View>
 
-      {/* Tabelle */}
+      {/* Tabellenkopf */}
       <View style={s.tableHeader}>
         <Text style={s.th}>Datum</Text>
         <Text style={s.th}>Ø GAP</Text>
         <Text style={s.th}>Schnell</Text>
         <Text style={s.th}>Langsam</Text>
       </View>
+
+      {/* Tabellenzeilen: neueste Session zuerst (reverse), abwechselnde Zeilenfarben */}
       {[...sessions].reverse().map((w: any, i: number) => {
         const gaps = w.laps.map((l: any) => l.gap).filter((v: any) => v != null && v > 0);
         const avgGap = mean(gaps);
@@ -195,6 +254,7 @@ export default function ProgressScreen() {
   );
 }
 
+// Styles im dunklen Design des restlichen Apps
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0D0D0D' },
   content: { padding: 16, paddingTop: 60, paddingBottom: 40 },
