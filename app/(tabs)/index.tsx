@@ -1,5 +1,14 @@
+// da filename index.tsx: startseite
 import { router } from 'expo-router';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+/*
+router	Navigation
+StyleSheet	Styling
+Text	Text anzeigen
+TouchableOpacity	Klick-/Touch-Element
+View	Container/Layout
+*/
 
 /**
  * Definiert die auswählbaren Workout-Typen auf dem Startbildschirm.
@@ -24,12 +33,13 @@ const WORKOUT_TYPES = [
  * deutet auf eine Long-Press-Funktion zum Importieren hin, die aktuell
  * aber noch nicht implementiert ist (kein onLongPress-Handler vorhanden).
  */
+ 
 export default function WorkoutsScreen() {
   return (
     <View style={s.container}>
       <Text style={s.title}>Garmin Analyzer</Text>
       <Text style={s.subtitle}>Wähle einen Workout-Typ</Text>
-
+{/* navigiere in einzelne workout fenster */}
       {/* Eine Karte pro Workout-Typ, farblich passend zum jeweiligen Typ */}
       {WORKOUT_TYPES.map(workout => (
         <TouchableOpacity
