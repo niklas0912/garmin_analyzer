@@ -90,3 +90,37 @@ export async function updateWorkout(workout) {
   const updated = existing.map(w => w.id === workout.id ? workout : w);
   await AsyncStorage.setItem(KEY, JSON.stringify(updated));
 }
+
+
+const TYPES_KEY = 'workout_types_v1';
+
+// Diese drei Typen sind der Startzustand, falls noch nichts gespeichert wurde
+const DEFAULT_TYPES = [
+  { name: 'Intervalle 400m', color: '#C8F135' },
+  { name: 'Intervalle 6min', color: '#4DB8FF' },
+  { name: 'Intervalle all Out', color: '#FF4D4D' },
+];
+
+/**
+ * Lädt alle Workout-Typen. Beim allerersten Aufruf (noch nichts gespeichert)
+ * werden die DEFAULT_TYPES zurückgegeben und direkt gespeichert, damit
+ * spätere Aufrufe konsistent sind.
+ */
+export async function loadWorkoutTypes() {
+  const raw = await AsyncStorage.getItem(TYPES_KEY);
+  if (!raw) {
+    await AsyncStorage.setItem(TYPES_KEY, JSON.stringify(DEFAULT_TYPES));
+    return DEFAULT_TYPES;
+  }
+  return JSON.parse(raw);
+}
+
+/**
+ * Fügt einen neuen Workout-Typ hinzu und speichert die aktualisierte Liste.
+ */
+export async function addWorkoutType(type) {
+  const existing = await loadWorkoutTypes();
+  const updated = [...existing, type];
+  await AsyncStorage.setItem(TYPES_KEY, JSON.stringify(updated));
+  return updated;
+}
