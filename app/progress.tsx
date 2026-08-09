@@ -7,7 +7,12 @@ import { loadWorkoutsByName } from '../utils/storage';
 
 // Breite des Charts: Bildschirmbreite abzüglich horizontalem Padding (2x 32px = 64px)
 const W = Dimensions.get('window').width - 64;
-
+type Session = {
+  id: string;
+  name: string;
+  date: Date;
+  laps: any[];
+};
 /**
  * Berechnet den Durchschnitt eines Arrays von Zahlen.
  * Filtert dabei null/undefined sowie Werte <= 0 heraus (z.B. fehlerhafte
@@ -65,16 +70,17 @@ export default function ProgressScreen() {
   const { workout } = useLocalSearchParams();
 
   // Alle gespeicherten Sessions für diesen Workout-Namen
-  const [sessions, setSessions] = useState([]);
-
+  const [sessions, setSessions] = useState<Session[]>([]);
   // Aktuell in den Tabs ausgewählte Metrik (Standard: Pace)
   const [metric, setMetric] = useState('gap');
 
   // Lädt beim Mounten der Komponente alle bisherigen Workouts mit
   // passendem Namen aus dem lokalen Speicher.
   useEffect(() => {
-    loadWorkoutsByName(workout as string).then(setSessions);
-  }, []);
+    loadWorkoutsByName(workout as string).then(data => {
+      setSessions(data as Session[]);
+    });
+  }, [workout]);
 
   // Metadaten (Label, Farbe) der aktuell gewählten Metrik
   const current = METRICS.find(m => m.key === metric)!;

@@ -24,8 +24,23 @@ export default function SessionsScreen() {
   // useState speichert die Liste der Sessions im Arbeitsspeicher.
   // Wenn sich sessions ändert, rendert React Native den Screen automatisch neu.
   // <any[]> sagt TypeScript: das ist ein Array, wir kümmern uns nicht um den genauen Typ.
-  const [sessions, setSessions] = useState<any[]>([]);
-
+  type Lap = {
+    index: number;
+    distance: number;
+    avgHr: number | null;
+    maxHr: number | null;
+    gap: number | null;
+    isFast: boolean;
+  };
+  
+  type Session = {
+    id: string;
+    name: string;
+    date: Date;
+    laps: Lap[];
+  };
+  
+  const [sessions, setSessions] = useState<Session[]>([]);
   // useFocusEffect läuft jedes Mal wenn dieser Screen sichtbar wird –
   // also auch wenn man von der Detailansicht zurücknavigiert.
   // Wichtig: So sehen wir sofort aktualisierte isFast-Markierungen.
@@ -35,7 +50,7 @@ export default function SessionsScreen() {
     loadWorkoutsByName(workout as string).then(data => {
       // Debug: zeigt welche Runden als "schnell" markiert sind
       console.log('isFast Werte:', data.map((w: any) => w.laps.map((l: any) => l.isFast)));
-      setSessions(data);
+      setSessions(data as Session[]);
     });
   }, [workout])); // [workout] bedeutet: nur neu ausführen wenn sich workout ändert
 
@@ -67,7 +82,7 @@ export default function SessionsScreen() {
 
       // Liste neu laden damit die neue Session sofort erscheint
       const updated = await loadWorkoutsByName(workout as string);
-      setSessions(updated);
+      setSessions(updated as Session[]);
 
       Alert.alert('Importiert!', `${data.laps.length} Runden gespeichert.`);
     } catch (e: any) {
