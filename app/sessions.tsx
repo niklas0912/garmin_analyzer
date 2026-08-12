@@ -39,7 +39,7 @@ export default function SessionsScreen() {
     date: Date;
     laps: Lap[];
   };
-  
+   
   const [sessions, setSessions] = useState<Session[]>([]);
   // useFocusEffect läuft jedes Mal wenn dieser Screen sichtbar wird –
   // also auch wenn man von der Detailansicht zurücknavigiert.
@@ -48,8 +48,6 @@ export default function SessionsScreen() {
   useFocusEffect(useCallback(() => {
     console.log('Sessions neu laden...');
     loadWorkoutsByName(workout as string).then(data => {
-      // Debug: zeigt welche Runden als "schnell" markiert sind
-      console.log('isFast Werte:', data.map((w: any) => w.laps.map((l: any) => l.isFast)));
       setSessions(data as Session[]);
     });
   }, [workout])); // [workout] bedeutet: nur neu ausführen wenn sich workout ändert
@@ -85,8 +83,12 @@ export default function SessionsScreen() {
       setSessions(updated as Session[]);
 
       Alert.alert('Importiert!', `${data.laps.length} Runden gespeichert.`);
-    } catch (e: any) {
-      Alert.alert('Fehler', e.message);
+    } catch (e) {
+      if (e instanceof Error) {
+        Alert.alert('Fehler', e.message);
+      } else {
+        Alert.alert('Fehler', 'Ein unbekannter Fehler ist aufgetreten.');
+    }
     }
   }
 
@@ -111,7 +113,7 @@ export default function SessionsScreen() {
 
   // Berechnet den Durchschnitt eines numerischen Felds über alle Laps.
   // Filtert ungültige Werte heraus (null, 0, oder > 220 bei HF-Werten).
-  function meanOf(laps: any[], key: string) {
+  function meanOf(laps: Lap[], key: string) {
     const vals = laps.map((l: any) => l[key]).filter((v: any) => v != null && v > 0 && v < 220);
     return vals.length
       ? Math.round(vals.reduce((a: number, b: number) => a + b, 0) / vals.length)
@@ -119,7 +121,7 @@ export default function SessionsScreen() {
   }
 
   // Gibt den Maximalwert eines Felds über alle Laps zurück.
-  function maxOf(laps: any[], key: string) {
+  function maxOf(laps: Lap[], key: string) {
     const vals = laps.map((l: any) => l[key]).filter((v: any) => v != null && v > 0 && v < 220);
     return vals.length ? Math.max(...vals) : null;
   }
