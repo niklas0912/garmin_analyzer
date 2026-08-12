@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { formatPace } from '../utils/fitParser';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { formatPace, parsePace } from '../utils/fitParser';
 import { loadAllWorkouts, updateWorkout } from '../utils/storage';
 
 /**
@@ -21,6 +21,10 @@ export default function DetailScreen() {
 
   // Die geladene Session inkl. aller Laps; null solange noch nicht geladen
   const [session, setSession] = useState<any>(null);
+
+  // Eingabe für die manuelle Pace-Schwelle (Format m:ss), z.B. "4:30"
+  const [thresholdInput, setThresholdInput] = useState('4:15');
+  const [showOnlyFast, setShowOnlyFast] = useState(false);
 
   // Lädt beim Mounten alle Workouts und sucht die passende Session anhand
   // der sessionId heraus. Die console.log-Aufrufe dienen aktuell dem
@@ -64,6 +68,27 @@ export default function DetailScreen() {
     updateWorkout(updatedSession);    // Persistierung im Speicher
   }
 
+  /**
+   * Markiert alle Runden als "schnell", deren GAP-Pace unter (bzw. gleich)
+   * der eingegebenen Schwelle liegt. Erwartet Eingabe im Format m:ss.
+   */
+  function applyThreshold() {
+    const thresholdSecPerMeter = parsePace(thresholdInput);
+    if (thresholdSecPerMeter == null) {
+      Alert.alert('Ungültige Eingabe', 'Bitte im Format m:ss eingeben, z.B. 4:30');
+      return;
+    }
+
+    const updatedLaps = session.laps.map((lap: any) => ({
+      ...lap,
+      isFast: lap.pace != null && lap.pace <= thresholdSecPerMeter,
+    }));
+
+    const updatedSession = { ...session, laps: updatedLaps };
+    setSession(updatedSession);
+    updateWorkout(updatedSession);
+  }
+
   // Alle als "schnell" markierten Runden, plus Flag ob überhaupt welche existieren
   const fastLaps = session.laps.filter((l: any) => l.isFast);
   const hasFastLaps = fastLaps.length > 0;
@@ -77,11 +102,23 @@ export default function DetailScreen() {
    * @param key - Der Feldname im Lap-Objekt, der gemittelt wird
    * @returns Gerundeter Durchschnittswert, oder null falls keine gültigen Werte vorhanden sind
    */
+
+  function formatThresholdInput(raw: string) {
+    // Nur Ziffern behalten
+    const digits = raw.replace(/[^0-9]/g, '').slice(0, 3); // max 3 Ziffern, z.B. "430"
+  
+    if (digits.length <= 1) return digits;
+    // Letzte 2 Ziffern sind Sekunden, Rest sind Minuten
+    const min = digits.slice(0, -2);
+    const sec = digits.slice(-2);
+    return `${min}:${sec}`;
+  }
   function meanOf(laps: any[], key: string) {
     const vals = laps.map((l: any) => l[key]).filter((v: any) => v != null && v > 0 && v < 220);
     return vals.length ? Math.round(vals.reduce((a: number, b: number) => a + b, 0) / vals.length) : null;
   }
 
+  const visibleLaps = showOnlyFast ? fastLaps : session.laps;
   return (
     <ScrollView contentContainerStyle={s.list}>
       {/* Kopfbereich: Datum der Session */}
@@ -93,18 +130,18 @@ export default function DetailScreen() {
       {/* Zusammenfassungs-Box für "schnelle" Runden, nur wenn welche markiert sind */}
       {hasFastLaps && (
         <View style={s.summary}>
-          <Text style={s.summaryTitle}>Schnelle Runden ({fastLaps.length})</Text>
+          <Text style={s.summaryTitle}>Fast laps only ({fastLaps.length})</Text>
           <View style={s.summaryStats}>
             <View style={s.stat}>
-              <Text style={s.statLabel}>Ø HF</Text>
+              <Text style={s.statLabel}>Ø HR</Text>
               <Text style={[s.statValue, { color: '#FF4D4D' }]}>{meanOf(fastLaps, 'avgHr') ?? '--'}</Text>
             </View>
             <View style={s.stat}>
-              <Text style={s.statLabel}>Max HF</Text>
+              <Text style={s.statLabel}>Max HR</Text>
               <Text style={[s.statValue, { color: '#FF4D4D' }]}>{meanOf(fastLaps, 'maxHr') ?? '--'}</Text>
             </View>
             <View style={s.stat}>
-              <Text style={s.statLabel}>Ø GAP</Text>
+              <Text style={s.statLabel}>Ø Pace</Text>
               <Text style={[s.statValue, { color: '#4DB8FF' }]}>
                 {/*
                   Gewichteter Durchschnitt der Pace über alle schnellen Runden:
@@ -112,24 +149,49 @@ export default function DetailScreen() {
                   äquivalent, aber in einem einzigen reduce-Durchlauf berechnet.
                   Runden ohne gültige Pace (<= 0) werden vorher rausgefiltert.
                 */}
-                {formatPace(fastLaps.map((l: any) => l.gap).filter((v: any) => v > 0).reduce((a: number, b: number, _: any, arr: any[]) => a + b / arr.length, 0) || null)}
+                {formatPace(fastLaps.map((l: any) => l.pace).filter((v: any) => v > 0).reduce((a: number, b: number, _: any, arr: any[]) => a + b / arr.length, 0) || null)}
               </Text>
             </View>
           </View>
         </View>
       )}
 
+      {/* Automatische Erkennung per Pace-Schwelle */}
+      <View style={s.thresholdRow}>
+      <TextInput
+        style={s.thresholdInput}
+        placeholder="z.B. 4:30"
+        placeholderTextColor="#555555"
+        value={thresholdInput}
+        onChangeText={(text) => setThresholdInput(formatThresholdInput(text))}
+        keyboardType="number-pad"
+        maxLength={4}
+/>
+        <TouchableOpacity style={s.thresholdButton} onPress={applyThreshold}>
+          <Text style={s.thresholdButtonText}>Select threshhold</Text>
+        </TouchableOpacity>
+      </View>
+      {hasFastLaps && (
+  <TouchableOpacity
+    style={s.filterToggle}
+    onPress={() => setShowOnlyFast(!showOnlyFast)}
+  >
+    <Text style={s.filterToggleText}>
+      {showOnlyFast ? 'Show all' : 'Fast laps only'}
+    </Text>
+  </TouchableOpacity>
+)}
       {/* Tabellenkopf für die Lap-Liste */}
       <View style={s.tableHeader}>
         <Text style={[s.th, { flex: 0.5 }]}>#</Text>
         <Text style={s.th}>Dist</Text>
-        <Text style={s.th}>Ø HF</Text>
-        <Text style={s.th}>Max HF</Text>
-        <Text style={s.th}>GAP</Text>
+        <Text style={s.th}>Ø HR</Text>
+        <Text style={s.th}>Max HR</Text>
+        <Text style={s.th}>Pace</Text>
       </View>
 
       {/* Liste aller Runden, antippbar zum Markieren als "schnell" */}
-      {session.laps.map((item: any, index: number) => (
+      {visibleLaps.map((item: any, index: number) => (
         <TouchableOpacity
           key={item.index}
           style={[s.row, index % 2 === 0 && s.rowEven, item.isFast && s.rowFast]}
@@ -145,7 +207,7 @@ export default function DetailScreen() {
           </Text>
           <Text style={[s.td, { color: '#FF4D4D' }]}>{item.avgHr ?? '--'}</Text>
           <Text style={[s.td, { color: '#FF4D4D' }]}>{item.maxHr ?? '--'}</Text>
-          <Text style={[s.td, { color: '#4DB8FF' }]}>{formatPace(item.gap)}</Text>
+          <Text style={[s.td, { color: '#4DB8FF' }]}>{formatPace(item.pace)}</Text>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -177,4 +239,26 @@ const s = StyleSheet.create({
   rowEven: { backgroundColor: '#1A1A1A' },
   rowFast: { backgroundColor: '#1A2A0A', borderLeftWidth: 3, borderLeftColor: '#C8F135' },
   td: { flex: 1, color: '#F0F0F0', fontSize: 14, textAlign: 'center' },
+
+  thresholdRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  thresholdInput: {
+    flex: 1, backgroundColor: '#1A1A1A', borderRadius: 8,
+    padding: 10, color: '#F0F0F0', borderWidth: 1, borderColor: '#2E2E2E',
+  },
+  thresholdButton: {
+    backgroundColor: '#1A2A0A', borderRadius: 8, paddingHorizontal: 14,
+    justifyContent: 'center', borderWidth: 1, borderColor: '#C8F135',
+  },
+  thresholdButtonText: { color: '#C8F135', fontSize: 13, fontWeight: '700' },
+  filterToggle: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2E2E2E',
+  },
+  filterToggleText: { color: '#C8F135', fontSize: 12, fontWeight: '600' },
 });

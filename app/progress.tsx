@@ -89,7 +89,7 @@ export default function ProgressScreen() {
 
   // Linie 1: Durchschnittliche GAP-Pace pro Session, mit Datum als X-Achsen-Label
   const avgPaceData = sessions.map((w: any) => {
-    const avg = mean(w.laps.map((l: any) => l.gap));
+    const avg = mean(w.laps.map((l: any) => l.pace));
     return {
       value: toSecKm(avg),
       label: new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
@@ -98,14 +98,14 @@ export default function ProgressScreen() {
 
   // Linie 2: Schnellste Runde (Minimum-Pace) pro Session
   const fastestData = sessions.map((w: any) => {
-    const vals = w.laps.map((l: any) => l.gap).filter((v: any) => v != null && v > 0);
+    const vals = w.laps.map((l: any) => l.pace).filter((v: any) => v != null && v > 0);
     const fastest = vals.length ? Math.min(...vals) : null;
     return { value: toSecKm(fastest) };
   });
 
   // Linie 3: Langsamste Runde (Maximum-Pace) pro Session
   const slowestData = sessions.map((w: any) => {
-    const vals = w.laps.map((l: any) => l.gap).filter((v: any) => v != null && v > 0);
+    const vals = w.laps.map((l: any) => l.pace).filter((v: any) => v != null && v > 0);
     const slowest = vals.length ? Math.max(...vals) : null;
     return { value: toSecKm(slowest) };
   });
@@ -234,14 +234,14 @@ export default function ProgressScreen() {
       {/* Tabellenkopf */}
       <View style={s.tableHeader}>
         <Text style={s.th}>Datum</Text>
-        <Text style={s.th}>Ø GAP</Text>
+        <Text style={s.th}>Ø Pace</Text>
         <Text style={s.th}>Schnell</Text>
         <Text style={s.th}>Langsam</Text>
       </View>
 
       {/* Tabellenzeilen: neueste Session zuerst (reverse), abwechselnde Zeilenfarben */}
       {[...sessions].reverse().map((w: any, i: number) => {
-        const gaps = w.laps.map((l: any) => l.gap).filter((v: any) => v != null && v > 0);
+        const gaps = w.laps.map((l: any) => l.pace).filter((v: any) => v != null && v > 0);
         const avgGap = mean(gaps);
         const fastest = gaps.length ? Math.min(...gaps) : null;
         const slowest = gaps.length ? Math.max(...gaps) : null;

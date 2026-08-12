@@ -29,7 +29,7 @@ export default function SessionsScreen() {
     distance: number;
     avgHr: number | null;
     maxHr: number | null;
-    gap: number | null;
+    pace: number | null;
     isFast: boolean;
   };
   
@@ -94,6 +94,22 @@ export default function SessionsScreen() {
 
   // ── Session löschen ───────────────────────────────────────────────────────
   async function handleDelete(id: string) {
+    // Erst nachfragen bevor wir löschen
+    Alert.alert('Löschen?', 'Diese Session wird entfernt.', [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Löschen', style: 'destructive',
+        onPress: async () => {
+          await deleteWorkout(id);
+          // Lokalen State aktualisieren ohne neu zu laden:
+          // filter() gibt ein neues Array zurück ohne die gelöschte Session
+          setSessions(s => s.filter(w => w.id !== id));
+        },
+      },
+    ]);
+  }
+
+  async function multiplehandleDelete(id: string) {
     // Erst nachfragen bevor wir löschen
     Alert.alert('Löschen?', 'Diese Session wird entfernt.', [
       { text: 'Abbrechen', style: 'cancel' },
@@ -174,10 +190,9 @@ export default function SessionsScreen() {
           const avgHr = meanOf(relevantLaps, 'avgHr');
           const maxHr = maxOf(relevantLaps, 'maxHr');
 
-          // Durchschnittliche GAP: Summe aller GAP-Werte geteilt durch Anzahl
-          // reduce() mit arr.length im Nenner = laufender Durchschnitt
-          const avgGap = relevantLaps
-            .map((l: any) => l.gap)
+
+          const avgpace = relevantLaps
+            .map((l: any) => l.pace)
             .filter((v: any) => v != null && v > 0)
             .reduce((a: number, b: number, _: any, arr: any[]) => a + b / arr.length, 0) || null;
 
@@ -210,8 +225,8 @@ export default function SessionsScreen() {
                   <Text style={[s.statValue, { color: '#FF4D4D' }]}>{maxHr ?? '--'}</Text>
                 </View>
                 <View style={s.stat}>
-                  <Text style={s.statLabel}>Ø GAP</Text>
-                  <Text style={[s.statValue, { color: '#4DB8FF' }]}>{formatPace(avgGap)}</Text>
+                  <Text style={s.statLabel}>Ø pace</Text>
+                  <Text style={[s.statValue, { color: '#4DB8FF' }]}>{formatPace(avgpace)}</Text>
                 </View>
                 <View style={s.stat}>
                   <Text style={s.statLabel}>Zeit</Text>

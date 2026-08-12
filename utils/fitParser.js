@@ -300,33 +300,9 @@ function parseFit(buffer) {
        * Rundeninformationen ausgelesen.
        */
       if (def.globalMsgNum === 19) {
-        console.log("LAP DEFINITION:", def);
-
-for (const f of def.fields) {
-    const val = readFieldValue(
-        view,
-        fieldOffset,
-        f.fieldSize,
-        f.baseType,
-        def.littleEndian
-    );
-
-    console.log(
-        "field:",
-        f.fieldNum,
-        "size:",
-        f.fieldSize,
-        "baseType:",
-        f.baseType.toString(16),
-        "value:",
-        val
-    );
-
-    fieldOffset += f.fieldSize;
-}
         const lap = {};
         let fieldOffset = msgStart;
-
+      
         for (const f of def.fields) {
           const val = readFieldValue(
             view,
@@ -335,55 +311,46 @@ for (const f of def.fields) {
             f.baseType,
             def.littleEndian
           );
-
+      
           switch (f.fieldNum) {
-
-            // Gesamtzeit der Runde.
-            // FIT speichert die Zeit in Millisekunden.
             case 7:
               lap.total_elapsed_time = val / 1000;
               break;
-
-            // Gesamtdistanz der Runde.
-            // FIT speichert die Distanz in Metern mit Faktor 100.
+      
             case 9:
               lap.total_distance = val / 100;
               break;
-
-            // Durchschnittliche Geschwindigkeit.
-            // FIT speichert den Wert mit Skalierungsfaktor 1000
-            // bzw. abhängig vom verwendeten Feldtyp.
+      
             case 111:
               lap.avg_speed = val / 1500;
               break;
-
-            // Durchschnittliche Herzfrequenz.
+      
             case 15:
               lap.avg_heart_rate = val;
               break;
-
-            // Maximale Herzfrequenz.
+      
             case 16:
               lap.max_heart_rate = val;
               break;
-
-            // Art des Lap-Triggers.
+      
             case 25:
               lap.lap_trigger = val;
               break;
           }
-
+      
           fieldOffset += f.fieldSize;
         }
+      
+        if (lap.lap_trigger === 1) {
+          laps.push(lap);
+        }
+      }
 
         /*
          * Nur Laps mit dem gewünschten Lap-Trigger werden
          * in das Ergebnis aufgenommen.
          */
-        if (lap.lap_trigger === 1) {
-          laps.push(lap);
-        }
-      }
+
 
       // Zum nächsten Data Record springen.
       offset = msgStart + def.size;
@@ -495,7 +462,7 @@ export async function parseFitFile(uri, workoutName) {
        * rawPaceSpm ist aktuell noch keine tatsächlich
        * höhenangepasste Grade Adjusted Pace.
        */
-      gap: rawPaceSpm,
+      pace: (lap.total_elapsed_time/lap.total_distance),
 
       // Distanz in Metern.
       distance: lap.total_distance || 0,
@@ -522,3 +489,21 @@ export async function parseFitFile(uri, workoutName) {
   };
 }
 
+/**
+ * Wandelt eine Pace im Format "Minuten:Sekunden" (z.B. "4:30")
+ * zurück in Sekunden pro Meter um — das Gegenstück zu formatPace().
+ *
+ * @param {string} paceStr - Pace-Eingabe im Format "m:ss"
+ * @returns {number | null} Sekunden pro Meter, oder null bei ungültiger Eingabe
+ */
+export function parsePace(paceStr) {
+  const match = paceStr.trim().match(/^(\d+):(\d{1,2})$/);
+  if (!match) return null;
+
+  const min = parseInt(match[1], 10);
+  const sec = parseInt(match[2], 10);
+  if (sec >= 60) return null;
+
+  const secPerKm = min * 60 + sec;
+  return secPerKm / 1000;
+}
