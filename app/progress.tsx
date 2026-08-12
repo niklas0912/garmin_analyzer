@@ -30,7 +30,7 @@ function mean(arr: any[]) {
  * Konvertiert einen Pace-Wert von Sekunden/Meter in Sekunden/Kilometer.
  * Wird benötigt, weil die Rohdaten (GAP = Grade Adjusted Pace) in sec/m
  * vorliegen, die Chart- und Tabellenanzeige aber in der gebräuchlicheren
- * Einheit sec/km erfolgen soll.
+ * Einheit min/km erfolgen soll.
  *
  * @param val - Pace in Sekunden pro Meter, oder null wenn nicht vorhanden
  * @returns Gerundete Pace in Sekunden pro Kilometer (0 falls val null ist)
@@ -46,7 +46,7 @@ function toSecKm(val: number | null) {
  * verwendet wird.
  */
 const METRICS = [
-  { key: 'gap',   label: 'Pace (GAP)',  color: '#4DB8FF' },
+  { key: 'gap',   label: 'Pace',  color: '#4DB8FF' },
   { key: 'avgHr', label: 'Ø HF',        color: '#FF4D4D' },
   { key: 'maxHr', label: 'Max HF',      color: '#FF4D4D' },
 ];
@@ -89,8 +89,7 @@ export default function ProgressScreen() {
 
   // Linie 1: Durchschnittliche GAP-Pace pro Session, mit Datum als X-Achsen-Label
   const avgPaceData = sessions.map((w: any) => {
-    const avg = mean(w.laps.map((l: any) => l.pace));
-    return {
+    const avg = mean(w.laps.filter((l: any) => l.isFast).map((l: any) => l.pace));    return {
       value: toSecKm(avg),
       label: new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
     };
