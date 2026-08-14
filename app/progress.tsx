@@ -30,7 +30,7 @@ function mean(arr: any[]) {
  * Konvertiert einen Pace-Wert von Sekunden/Meter in Sekunden/Kilometer.
  * Wird benötigt, weil die Rohdaten (GAP = Grade Adjusted Pace) in sec/m
  * vorliegen, die Chart- und Tabellenanzeige aber in der gebräuchlicheren
- * Einheit min/km erfolgen soll.
+ * Einheit sec/km erfolgen soll.
  *
  * @param val - Pace in Sekunden pro Meter, oder null wenn nicht vorhanden
  * @returns Gerundete Pace in Sekunden pro Kilometer (0 falls val null ist)
@@ -46,7 +46,7 @@ function toSecKm(val: number | null) {
  * verwendet wird.
  */
 const METRICS = [
-  { key: 'gap',   label: 'Pace',  color: '#4DB8FF' },
+  { key: 'gap',   label: 'Pace (GAP)',  color: '#4DB8FF' },
   { key: 'avgHr', label: 'Ø HF',        color: '#FF4D4D' },
   { key: 'maxHr', label: 'Max HF',      color: '#FF4D4D' },
 ];
@@ -72,7 +72,7 @@ export default function ProgressScreen() {
   // Alle gespeicherten Sessions für diesen Workout-Namen
   const [sessions, setSessions] = useState<Session[]>([]);
   // Aktuell in den Tabs ausgewählte Metrik (Standard: Pace)
-  const [metric, setMetric] = useState('gap');
+  const [metric, setMetric] = useState('pace');
 
   // Lädt beim Mounten der Komponente alle bisherigen Workouts mit
   // passendem Namen aus dem lokalen Speicher.
@@ -89,7 +89,8 @@ export default function ProgressScreen() {
 
   // Linie 1: Durchschnittliche GAP-Pace pro Session, mit Datum als X-Achsen-Label
   const avgPaceData = sessions.map((w: any) => {
-    const avg = mean(w.laps.filter((l: any) => l.isFast).map((l: any) => l.pace));    return {
+    const avg = mean(w.laps.map((l: any) => l.pace));
+    return {
       value: toSecKm(avg),
       label: new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
     };
@@ -104,7 +105,7 @@ export default function ProgressScreen() {
 
   // Linie 3: Langsamste Runde (Maximum-Pace) pro Session
   const slowestData = sessions.map((w: any) => {
-    const vals = w.laps.map((l: any) => l.pace).filter((v: any) => v != null && v > 0);
+    const vals = w.laps.map((l: any) => l.gap).filter((v: any) => v != null && v > 0);
     const slowest = vals.length ? Math.max(...vals) : null;
     return { value: toSecKm(slowest) };
   });
@@ -233,7 +234,7 @@ export default function ProgressScreen() {
       {/* Tabellenkopf */}
       <View style={s.tableHeader}>
         <Text style={s.th}>Datum</Text>
-        <Text style={s.th}>Ø Pace</Text>
+        <Text style={s.th}>Ø GAP</Text>
         <Text style={s.th}>Schnell</Text>
         <Text style={s.th}>Langsam</Text>
       </View>
