@@ -89,8 +89,7 @@ export default function ProgressScreen() {
 
   // Linie 1: Durchschnittliche GAP-Pace pro Session, mit Datum als X-Achsen-Label
   const avgPaceData = sessions.map((w: any) => {
-    const avg = mean(w.laps.map((l: any) => l.pace));
-    return {
+    const avg = mean(w.laps.filter((l: any) => true).map((l: any) => l.pace));    return {
       value: toSecKm(avg),
       label: new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
     };
