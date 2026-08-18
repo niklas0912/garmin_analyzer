@@ -1,9 +1,11 @@
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 import { formatPace } from '../utils/fitParser';
 import { loadWorkoutsByName } from '../utils/storage';
+// oder: import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 
 // Breite des Charts: Bildschirmbreite abzüglich horizontalem Padding (2x 32px = 64px)
 const W = Dimensions.get('window').width - 64;
@@ -46,7 +48,7 @@ function toSecKm(val: number | null) {
  * verwendet wird.
  */
 const METRICS = [
-  { key: 'gap',   label: 'Pace (GAP)',  color: '#4DB8FF' },
+  { key: 'pace',   label: 'Pace (GAP)',  color: '#4DB8FF' },
   { key: 'avgHr', label: 'Ø HF',        color: '#FF4D4D' },
   { key: 'maxHr', label: 'Max HF',      color: '#FF4D4D' },
 ];
@@ -66,8 +68,11 @@ const METRICS = [
  *    langsamster Runde
  */
 export default function ProgressScreen() {
+
   // Workout-Name kommt als Query-Parameter aus der Navigation (expo-router)
   const { workout } = useLocalSearchParams();
+  const [yAxisMax, setYAxisMax] = useState('5');
+  const [yAxisMin, setYAxisMin] = useState('3');
 
   // Alle gespeicherten Sessions für diesen Workout-Namen
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -76,37 +81,44 @@ export default function ProgressScreen() {
 
   // Lädt beim Mounten der Komponente alle bisherigen Workouts mit
   // passendem Namen aus dem lokalen Speicher.
-  useEffect(() => {
-    loadWorkoutsByName(workout as string).then(data => {
-      setSessions(data as Session[]);
-    });
-  }, [workout]);
+  useFocusEffect(
+    useCallback(() => {
+      loadWorkoutsByName(workout as string).then(data => {
+        setSessions(data as Session[]);
+      });
+    }, [workout])
+  );
+
 
   // Metadaten (Label, Farbe) der aktuell gewählten Metrik
-  const current = METRICS.find(m => m.key === metric)!;
-
+  const current = METRICS.find(m => m.key === metric) ?? METRICS[0];
   // --- Datenaufbereitung für das Pace-Chart (3 Linien) ---
-
   // Linie 1: Durchschnittliche GAP-Pace pro Session, mit Datum als X-Achsen-Label
   const avgPaceData = sessions.map((w: any) => {
-    const avg = mean(w.laps.filter((l: any) => true).map((l: any) => l.pace));    return {
-      value: toSecKm(avg),
+    const fastLaps = w.laps.filter((l: any) => l.isFast);
+    const relevantLaps = fastLaps.length ? fastLaps : w.laps;
+    const avg = mean(relevantLaps.map((l: any) => l.pace));
+    return {
+      //value: toSecKm(avg),
+      value: avg ? (1000/60) * avg : undefined,
       label: new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
     };
   });
+
 
   // Linie 2: Schnellste Runde (Minimum-Pace) pro Session
   const fastestData = sessions.map((w: any) => {
     const vals = w.laps.map((l: any) => l.pace).filter((v: any) => v != null && v > 0);
     const fastest = vals.length ? Math.min(...vals) : null;
-    return { value: toSecKm(fastest) };
+    return {   value: fastest ? (1000/60) * fastest : undefined, };
   });
 
   // Linie 3: Langsamste Runde (Maximum-Pace) pro Session
   const slowestData = sessions.map((w: any) => {
-    const vals = w.laps.map((l: any) => l.gap).filter((v: any) => v != null && v > 0);
+    const fastLaps = w.laps.filter((l: any) => l.isFast);
+    const vals = fastLaps.map((l: any) => l.pace).filter((v: any) => v != null && v > 0);
     const slowest = vals.length ? Math.max(...vals) : null;
-    return { value: toSecKm(slowest) };
+    return {   value: slowest ? (1000/60) * slowest : undefined, };
   });
 
   // --- Datenaufbereitung für das Herzfrequenz-Chart (1 Linie) ---
@@ -127,7 +139,7 @@ export default function ProgressScreen() {
   });
 
   // Steuert, ob das Pace-Chart (3 Linien) oder das HF-Chart (1 Linie) angezeigt wird
-  const isPace = metric === 'gap';
+  const isPace = metric === 'pace';
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
@@ -152,6 +164,26 @@ export default function ProgressScreen() {
       <View style={s.chartCard}>
         {sessions.length >= 2 ? (
           <>
+          <View style={s.yAxisRow}>
+  <Text style={s.yAxisLabel}>Y-Achse:</Text>
+  <TextInput
+    style={s.yAxisInput}
+    placeholder="min"
+    placeholderTextColor="#555555"
+    value={yAxisMin}
+    onChangeText={setYAxisMin}
+    keyboardType="numeric"
+  />
+  <Text style={s.yAxisLabel}>–</Text>
+  <TextInput
+    style={s.yAxisInput}
+    placeholder="max"
+    placeholderTextColor="#555555"
+    value={yAxisMax}
+    onChangeText={setYAxisMax}
+    keyboardType="numeric"
+  />
+</View>
             {isPace ? (
               // --- Pace-Ansicht: 3 Linien (Ø, schnellste, langsamste) ---
               <>
@@ -161,6 +193,7 @@ export default function ProgressScreen() {
                     <View style={[s.dot, { backgroundColor: '#4DB8FF' }]} />
                     <Text style={s.legendText}>Ø Pace</Text>
                   </View>
+
                   <View style={s.legendItem}>
                     <View style={[s.dot, { backgroundColor: '#C8F135' }]} />
                     <Text style={s.legendText}>Schnellstes</Text>
@@ -176,6 +209,8 @@ export default function ProgressScreen() {
                   data3={slowestData}
                   width={W}
                   height={200}
+                  maxValue={parseFloat(yAxisMax)-parseFloat(yAxisMin)}        // oberes Ende der Y-Achse
+                  yAxisOffset={parseFloat(yAxisMin)} // unteres Ende (Standard ist meist 0)
                   color={'#4DB8FF'}
                   color2={'#C8F135'}
                   color3={'#FF4D4D'}
@@ -287,4 +322,10 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', paddingVertical: 8, borderRadius: 6 },
   rowEven: { backgroundColor: '#1A1A1A' },
   td: { flex: 1, color: '#F0F0F0', fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  yAxisRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+yAxisLabel: { color: '#555555', fontSize: 12 },
+yAxisInput: {
+  backgroundColor: '#1A1A1A', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10,
+  color: '#F0F0F0', borderWidth: 1, borderColor: '#2E2E2E', width: 60, fontSize: 13,
+},
 });
