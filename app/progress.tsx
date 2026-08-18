@@ -47,10 +47,17 @@ function toSecKm(val: number | null) {
  * Anzeige-Label und eine Farbe, die konsistent für Chart, Tabs und Legende
  * verwendet wird.
  */
-const METRICS = [
-  { key: 'pace',   label: 'Pace (GAP)',  color: '#4DB8FF' },
-  { key: 'avgHr', label: 'Ø HF',        color: '#FF4D4D' },
-  { key: 'maxHr', label: 'Max HF',      color: '#FF4D4D' },
+
+type Metric = 'pace' | 'avgHr' | 'maxHr';
+
+const METRICS: {
+  key: Metric;
+  label: string;
+  color: string;
+}[] = [
+  { key: 'pace', label: 'Pace (GAP)', color: '#4DB8FF' },
+  { key: 'avgHr', label: 'Ø HF', color: '#FF4D4D' },
+  { key: 'maxHr', label: 'Max HF', color: '#FF4D4D' },
 ];
 
 /**
@@ -71,13 +78,28 @@ export default function ProgressScreen() {
 
   // Workout-Name kommt als Query-Parameter aus der Navigation (expo-router)
   const { workout } = useLocalSearchParams();
-  const [yAxisMax, setYAxisMax] = useState('5');
-  const [yAxisMin, setYAxisMin] = useState('3');
+  const [yAxis, setYAxis] = useState({
+    pace: {
+      min: '3.5',
+      max: '4.5',
+    },
+    avgHr: {
+      min: '150',
+      max: '170',
+    },
+    maxHr: {
+      min: '160',
+      max: '180',
+    },
+  });
+  
 
   // Alle gespeicherten Sessions für diesen Workout-Namen
   const [sessions, setSessions] = useState<Session[]>([]);
   // Aktuell in den Tabs ausgewählte Metrik (Standard: Pace)
-  const [metric, setMetric] = useState('pace');
+  const [metric, setMetric] = useState<Metric>('pace');
+  
+  const currentYAxis = yAxis[metric];
 
   // Lädt beim Mounten der Komponente alle bisherigen Workouts mit
   // passendem Namen aus dem lokalen Speicher.
@@ -138,6 +160,12 @@ export default function ProgressScreen() {
     };
   });
 
+
+
+
+
+
+  
   // Steuert, ob das Pace-Chart (3 Linien) oder das HF-Chart (1 Linie) angezeigt wird
   const isPace = metric === 'pace';
 
@@ -149,7 +177,7 @@ export default function ProgressScreen() {
 
       {/* Tabs zum Umschalten der angezeigten Metrik */}
       <View style={s.tabs}>
-        {METRICS.map(m => (
+        {METRICS.map( m => (
           <TouchableOpacity
             key={m.key}
             style={[s.tab, metric === m.key && { borderColor: m.color, backgroundColor: '#222222' }]}
