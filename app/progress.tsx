@@ -163,11 +163,34 @@ export default function ProgressScreen() {
 
 
 
-
+  const chartConfig = {
+    pace: {
+      data: avgPaceData,
+      color: '#4DB8FF',
+      min: yAxis.pace.min,
+      max: yAxis.pace.max,
+    },
+  
+    avgHr: {
+      data: hrData,
+      color: '#FF4D4D',
+      min: yAxis.avgHr.min,
+      max: yAxis.avgHr.max,
+    },
+  
+    maxHr: {
+      data: hrData,
+      color: '#FF4D4D',
+      min: yAxis.maxHr.min,
+      max: yAxis.maxHr.max,
+    },
+  };
+  
+  
 
   
   // Steuert, ob das Pace-Chart (3 Linien) oder das HF-Chart (1 Linie) angezeigt wird
-  const isPace = metric === 'pace';
+  const currentChart = chartConfig[metric];
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
@@ -198,22 +221,18 @@ export default function ProgressScreen() {
     style={s.yAxisInput}
     placeholder="min"
     placeholderTextColor="#555555"
-    value={yAxisMin}
-    onChangeText={setYAxisMin}
-    keyboardType="numeric"
-  />
-  <Text style={s.yAxisLabel}>–</Text>
-  <TextInput
-    style={s.yAxisInput}
-    placeholder="max"
-    placeholderTextColor="#555555"
-    value={yAxisMax}
-    onChangeText={setYAxisMax}
-    keyboardType="numeric"
+    value={currentChart.min}
+    onChangeText={(value) =>
+      setYAxis(prev => ({
+        ...prev,
+        [metric]: {
+          ...prev[metric],
+          min: value,
+        },
+      }))
+    }    keyboardType="numeric"
   />
 </View>
-            {isPace ? (
-              // --- Pace-Ansicht: 3 Linien (Ø, schnellste, langsamste) ---
               <>
                 {/* Farblegende zur Zuordnung der drei Linien */}
                 <View style={s.legend}>
@@ -232,13 +251,12 @@ export default function ProgressScreen() {
                   </View>
                 </View>
                 <LineChart
-                  data={avgPaceData}
-                  data2={fastestData}
-                  data3={slowestData}
+                  data={currentChart.data}
+
                   width={W}
                   height={200}
-                  maxValue={parseFloat(yAxisMax)-parseFloat(yAxisMin)}        // oberes Ende der Y-Achse
-                  yAxisOffset={parseFloat(yAxisMin)} // unteres Ende (Standard ist meist 0)
+                  maxValue={parseFloat(currentChart.max)-parseFloat(currentChart.min)}        // oberes Ende der Y-Achse
+                  yAxisOffset={parseFloat(currentChart.max)} // unteres Ende (Standard ist meist 0)
                   color={'#4DB8FF'}
                   color2={'#C8F135'}
                   color3={'#FF4D4D'}
@@ -264,35 +282,16 @@ export default function ProgressScreen() {
                 {/* Hinweis, da bei Pace ein niedrigerer Wert besser ist (im Gegensatz zu z.B. Distanz) */}
                 <Text style={s.note}>Niedrigerer Wert = schnellere Pace</Text>
               </>
-            ) : (
-              // --- Herzfrequenz-Ansicht: 1 Linie (Ø HF oder Max HF) ---
-              <LineChart
-                data={hrData}
-                width={W}
-                height={200}
-                color={current.color}
-                thickness={2}
-                dataPointsColor={current.color}
-                dataPointsRadius={5}
-                xAxisColor={'#2E2E2E'}
-                yAxisColor={'#2E2E2E'}
-                yAxisTextStyle={{ color: '#555555', fontSize: 10 }}
-                xAxisLabelTextStyle={{ color: '#555555', fontSize: 9 }}
-                backgroundColor={'#1A1A1A'}
-                rulesColor={'#2E2E2E'}
-                rulesType="dashed"
-                curved
-                noOfSections={4}
-                hideOrigin
-              />
-            )}
+           
           </>
-        ) : (
+         ) :(
           // Fallback, solange nicht genug Sessions für eine Kurve vorliegen
+          <View>
           <Text style={s.empty}>Mindestens 2 Sessions nötig für eine Kurve.</Text>
-        )}
+         
       </View>
-
+         )}
+          </View>
       {/* Tabellenkopf */}
       <View style={s.tableHeader}>
         <Text style={s.th}>Datum</Text>
