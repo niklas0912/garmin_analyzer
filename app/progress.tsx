@@ -14,6 +14,7 @@ type Session = {
   name: string;
   date: Date;
   laps: any[];
+  temperature: number
 };
 /**
  * Berechnet den Durchschnitt eines Arrays von Zahlen.
@@ -294,10 +295,12 @@ export default function ProgressScreen() {
           </View>
       {/* Tabellenkopf */}
       <View style={s.tableHeader}>
-        <Text style={s.th}>Datum</Text>
-        <Text style={s.th}>Ø GAP</Text>
-        <Text style={s.th}>Schnell</Text>
-        <Text style={s.th}>Langsam</Text>
+        <Text style={s.th}>Date</Text>
+        <Text style={s.th}>Temperature</Text>
+
+        <Text style={s.th}>Ø Pace </Text>
+        <Text style={s.th}>fastest</Text>
+        <Text style={s.th}>slowest</Text>
       </View>
 
       {/* Tabellenzeilen: neueste Session zuerst (reverse), abwechselnde Zeilenfarben */}
@@ -309,8 +312,8 @@ export default function ProgressScreen() {
         return (
           <View key={w.id} style={[s.row, i % 2 === 0 && s.rowEven]}>
             <Text style={s.td}>
-              {new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-            </Text>
+              {new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}</Text>
+              <Text style={s.td}> {w.temperature?.toFixed(1) ?? "--"} </Text>
             <Text style={[s.td, { color: '#4DB8FF' }]}>{formatPace(avgGap)}</Text>
             <Text style={[s.td, { color: '#C8F135' }]}>{formatPace(fastest)}</Text>
             <Text style={[s.td, { color: '#FF4D4D' }]}>{formatPace(slowest)}</Text>

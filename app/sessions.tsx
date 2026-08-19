@@ -8,13 +8,13 @@
 //   - Eine Session lang drücken → Löschen
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { formatPace, parseFitFile } from '../utils/fitParser';
 import { deleteWorkout, loadWorkoutsByName, saveWorkout } from '../utils/storage';
-
 export default function SessionsScreen() {
   // useLocalSearchParams liest die URL-Parameter aus.
   // Wenn wir von der Startseite navigieren mit { workout: "Intervalle 400m" },
@@ -31,6 +31,7 @@ export default function SessionsScreen() {
     maxHr: number | null;
     pace: number | null;
     isFast: boolean;
+    temperature: number | null;
   };
   
   type Session = {
@@ -38,6 +39,7 @@ export default function SessionsScreen() {
     name: string;
     date: Date;
     laps: Lap[];
+    temperature: number | null;
   };
    
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -210,9 +212,19 @@ export default function SessionsScreen() {
               onLongPress={() => handleDelete(item.id)}
             >
               {/* Datum des Workouts (aus der FIT-Datei, nicht Importdatum) */}
-              <Text style={s.date}>
-                {date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
-              </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+  <Text style={s.date}>
+    {date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
+  </Text>
+
+  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+    <Ionicons name="thermometer-outline" size={14} color="#C8F135" />
+    <Text style={s.temperature}>
+      {item.temperature != null ? `${item.temperature.toFixed(1)}°C` : "--"}
+    </Text>
+  </View>
+</View>
+
 
               {/* Statistik-Zeile */}
               <View style={s.stats}>
@@ -275,4 +287,9 @@ const s = StyleSheet.create({
   stat: { alignItems: 'center' },  // Label und Wert vertikal zentrieren
   statLabel: { color: '#555555', fontSize: 11, marginBottom: 2 },
   statValue: { fontSize: 20, fontWeight: '800', color: '#F0F0F0' },
+  temperature: {
+    textAlign: "right",
+    color: '#C8F135', // euer Akzent
+    fontSize: 13,
+  },
 });

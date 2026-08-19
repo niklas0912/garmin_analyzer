@@ -134,7 +134,7 @@ function parseFit(buffer) {
 
   // Wird aus dem timestamp-Feld der Session Message bestimmt.
   let sessionDate = null;
-
+  let temps = []
   // Solange noch genügend Bytes für einen weiteren Record vorhanden sind.
   while (offset < buffer.byteLength - 2) {
     const recordHeader = view.getUint8(offset);
@@ -261,6 +261,25 @@ function parseFit(buffer) {
        *
        * Feld 253 enthält den FIT Timestamp.
        */
+      if (def.globalMsgNum === 20) {
+        let fieldOffset = msgStart;
+        for (const f of def.fields) {
+        const val = readFieldValue(
+          view,
+          fieldOffset,
+          f.fieldSize,
+          f.baseType,
+          def.littleEndian
+        );
+       // console.log(`field ${f.fieldNum} @offset ${fieldOffset}, size ${f.fieldSize}, val=${val}`);
+        switch (f.fieldNum) {
+        case 13: // temperature
+        if (val !== 0x7F) {
+          temps.push(val); // bereits in °C, keine Skalierung nötig
+        }
+        break;
+      }  fieldOffset += f.fieldSize;   // ← Offset wird weitergezählt
+    }}
       if (def.globalMsgNum === 18) {
         let fieldOffset = msgStart;
 
@@ -285,6 +304,7 @@ function parseFit(buffer) {
             sessionDate = new Date(
               (val + 631065600) * 1000
             );
+          
           }
 
           fieldOffset += f.fieldSize;
@@ -324,7 +344,10 @@ function parseFit(buffer) {
             case 111:
               lap.avg_speed = val / 1500;
               break;
-      
+            
+            case 13:
+              lap.temperature = val;
+              break;
             case 15:
               lap.avg_heart_rate = val;
               break;
@@ -355,11 +378,20 @@ function parseFit(buffer) {
       // Zum nächsten Data Record springen.
       offset = msgStart + def.size;
     }
+   
   }
+
+
+let total = 0;
+for(var i = 0; i < temps.length; i++) {
+    total += temps[i];
+}
+let average_temp = total / temps.length;
 
   return {
     laps,
-    sessionDate
+    sessionDate,
+    average_temp
   };
 }
 
@@ -413,7 +445,8 @@ export async function parseFitFile(uri, workoutName) {
    */
   const {
     laps: rawLaps,
-    sessionDate
+    sessionDate,
+    average_temp
   } = parseFit(buffer);
 
   /*
@@ -483,7 +516,7 @@ export async function parseFitFile(uri, workoutName) {
     date: sessionDate || new Date(),
 
     laps,
-
+    temperature: average_temp,
     // Eindeutige ID aus Workout-Name und aktuellem Timestamp.
     id: `${workoutName}_${Date.now()}`,
   };
