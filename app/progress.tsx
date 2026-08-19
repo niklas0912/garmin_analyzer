@@ -133,7 +133,10 @@ export default function ProgressScreen() {
   const fastestData = sessions.map((w: any) => {
     const vals = w.laps.map((l: any) => l.pace).filter((v: any) => v != null && v > 0);
     const fastest = vals.length ? Math.min(...vals) : null;
-    return {   value: fastest ? (1000/60) * fastest : undefined, };
+    return {  value: fastest ? (1000/60) * fastest : undefined,
+              label: new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+
+     };
   });
 
   // Linie 3: Langsamste Runde (Maximum-Pace) pro Session
@@ -141,7 +144,10 @@ export default function ProgressScreen() {
     const fastLaps = w.laps.filter((l: any) => l.isFast);
     const vals = fastLaps.map((l: any) => l.pace).filter((v: any) => v != null && v > 0);
     const slowest = vals.length ? Math.max(...vals) : null;
-    return {   value: slowest ? (1000/60) * slowest : undefined, };
+    return {  value: slowest ? (1000/60) * slowest : undefined, 
+              label: new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+
+    };
   });
 
   // --- Datenaufbereitung für das Herzfrequenz-Chart (1 Linie) ---
@@ -162,36 +168,42 @@ export default function ProgressScreen() {
   });
 
 
-
-
   const chartConfig = {
     pace: {
-      data: avgPaceData,
-      color: '#4DB8FF',
+      datasets: [
+        { data: avgPaceData, color: '#4DB8FF' },
+        { data: slowestData, color: '#FF4D4D' },
+        { data: fastestData, color: '#C8F135' },
+      ],
       min: yAxis.pace.min,
       max: yAxis.pace.max,
     },
-  
     avgHr: {
-      data: hrData,
-      color: '#FF4D4D',
+      datasets: [
+        { data: hrData, color: '#FF4D4D' },
+      ],
       min: yAxis.avgHr.min,
       max: yAxis.avgHr.max,
     },
-  
     maxHr: {
-      data: hrData,
-      color: '#FF4D4D',
+      datasets: [
+        { data: hrData, color: '#FF4D4D' },
+      ],
       min: yAxis.maxHr.min,
       max: yAxis.maxHr.max,
     },
   };
   
-  
+  const currentChart = chartConfig[metric];
 
+  const lineProps = currentChart.datasets.reduce((acc, ds, i) => {
+    const suffix = i === 0 ? '' : String(i + 1); // '', '2', '3', ...
+    acc[`data${suffix}`] = ds.data;
+    acc[`color${suffix || '1'}`] = ds.color;
+    return acc;
+  }, {} as Record<string, any>);
   
   // Steuert, ob das Pace-Chart (3 Linien) oder das HF-Chart (1 Linie) angezeigt wird
-  const currentChart = chartConfig[metric];
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
@@ -217,7 +229,7 @@ export default function ProgressScreen() {
         {sessions.length >= 2 ? (
           <>
           <View style={s.yAxisRow}>
-  <Text style={s.yAxisLabel}>Y-Achse:</Text>
+  <Text style={s.yAxisLabel}>Y-min:</Text>
   <TextInput
     style={s.yAxisInput}
     placeholder="min"
@@ -233,31 +245,50 @@ export default function ProgressScreen() {
       }))
     }    keyboardType="numeric"
   />
-</View>
+  <Text style={s.yAxisLabel}>Y-max:</Text>
+  <TextInput
+    style={s.yAxisInput}
+    placeholder="min"
+    placeholderTextColor="#555555"
+    value={currentChart.max}
+    onChangeText={(value) =>
+      setYAxis(prev => ({
+        ...prev,
+        [metric]: {
+          ...prev[metric],
+          max: value,
+        },
+      }))
+    }    keyboardType="numeric"
+  />
+  </View>
+
+     {metric === "pace" ? (
               <>
                 {/* Farblegende zur Zuordnung der drei Linien */}
                 <View style={s.legend}>
                   <View style={s.legendItem}>
                     <View style={[s.dot, { backgroundColor: '#4DB8FF' }]} />
-                    <Text style={s.legendText}>Ø Pace</Text>
+                    <Text style={s.legendText}>Ø lap time</Text>
                   </View>
 
                   <View style={s.legendItem}>
                     <View style={[s.dot, { backgroundColor: '#C8F135' }]} />
-                    <Text style={s.legendText}>Schnellstes</Text>
+                    <Text style={s.legendText}>fastest</Text>
                   </View>
                   <View style={s.legendItem}>
                     <View style={[s.dot, { backgroundColor: '#FF4D4D' }]} />
-                    <Text style={s.legendText}>Langsamtes</Text>
+                    <Text style={s.legendText}>slowest</Text>
                   </View>
                 </View>
+                </> 
+) : null}  
                 <LineChart
-                  data={currentChart.data}
-
+                  {...lineProps}
                   width={W}
                   height={200}
                   maxValue={parseFloat(currentChart.max)-parseFloat(currentChart.min)}        // oberes Ende der Y-Achse
-                  yAxisOffset={parseFloat(currentChart.max)} // unteres Ende (Standard ist meist 0)
+                  yAxisOffset={parseFloat(currentChart.min)} // unteres Ende (Standard ist meist 0)
                   color={'#4DB8FF'}
                   color2={'#C8F135'}
                   color3={'#FF4D4D'}
@@ -284,7 +315,7 @@ export default function ProgressScreen() {
                 <Text style={s.note}>Niedrigerer Wert = schnellere Pace</Text>
               </>
            
-          </>
+          
          ) :(
           // Fallback, solange nicht genug Sessions für eine Kurve vorliegen
           <View>
@@ -298,7 +329,7 @@ export default function ProgressScreen() {
         <Text style={s.th}>Date</Text>
         <Text style={s.th}>Temperature</Text>
 
-        <Text style={s.th}>Ø Pace </Text>
+        <Text style={s.th}>Lap average </Text>
         <Text style={s.th}>fastest</Text>
         <Text style={s.th}>slowest</Text>
       </View>
