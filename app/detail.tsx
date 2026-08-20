@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -122,9 +123,24 @@ export default function DetailScreen() {
   return (
     <ScrollView contentContainerStyle={s.list}>
       {/* Kopfbereich: Datum der Session */}
-      <Text style={s.title}>
+      {/* <Text style={s.title}>
         {date.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
+    <Ionicons name="thermometer-outline" size={14} color="#C8F135" />
+  
+      {session.temperature != null ? `${session.temperature.toFixed(1)}°C` : "--"}
+    </Text> */}
+       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Text style={s.title}>
+        {date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
       </Text>
+    
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <Ionicons name="thermometer-outline" size={14} color="#C8F135" />
+        <Text style={s.temperature}>
+          {session.temperature != null ? `${session.temperature.toFixed(1)}°C` : "--"}
+        </Text>
+      </View>
+    </View>
       <Text style={s.hint}>Tippe auf eine Runde um sie als schnell zu markieren</Text>
 
       {/* Zusammenfassungs-Box für "schnelle" Runden, nur wenn welche markiert sind */}
@@ -261,4 +277,9 @@ const s = StyleSheet.create({
     borderColor: '#2E2E2E',
   },
   filterToggleText: { color: '#C8F135', fontSize: 12, fontWeight: '600' },
+  temperature: {
+    textAlign: "right",
+    color: '#C8F135', // euer Akzent
+    fontSize: 13,
+  },
 });
