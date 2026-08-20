@@ -156,7 +156,9 @@ export default function SessionsScreen() {
 //        {/* ListHeaderComponent wird einmal ganz oben angezeigt – vor allen Sessions */}
         ListHeaderComponent={
           <View>
-            <Text style={s.title}>{workout}</Text>
+                <Text style={s.title}>{workout}</Text>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+        
 
             {/* Import-Button */}
             <TouchableOpacity style={s.button} onPress={handleImport}>
@@ -173,6 +175,8 @@ export default function SessionsScreen() {
               </TouchableOpacity>
             )}
           </View>
+          </View>
+
         }
 
 //        {/* Wird angezeigt wenn sessions leer ist */}
