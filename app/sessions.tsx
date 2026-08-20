@@ -175,6 +175,14 @@ export default function SessionsScreen() {
               </TouchableOpacity>
             )}
           </View>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity style={s.button} onPress={handleImport}>
+              <Text style={s.buttonText}> Remove multiple workouts</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.button} onPress={handleImport}>
+              <Text style={s.buttonText}> Compare workouts</Text>
+            </TouchableOpacity>
+            </View>
           </View>
 
         }
