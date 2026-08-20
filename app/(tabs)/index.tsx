@@ -62,7 +62,7 @@ export default function WorkoutsScreen() {
   return (
     <View style={s.container}>
       <Text style={s.title}>Garmin Analyzer</Text>
-      <Text style={s.subtitle}>Wähle einen Workout-Typ</Text>
+      <Text style={s.subtitle}>Choose a workout type</Text>
 
       {types.map(workout => (
         <TouchableOpacity
@@ -79,7 +79,7 @@ export default function WorkoutsScreen() {
       <View style={s.addRow}>
         <TextInput
           style={s.input}
-          placeholder="Neuer Workout-Typ..."
+          placeholder="Add new workout type..."
           placeholderTextColor="#555555"
           value={newName}
           onChangeText={setNewName}
