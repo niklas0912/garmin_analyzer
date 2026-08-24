@@ -155,6 +155,9 @@ export default function SessionsScreen() {
       } else {
         next.add(id);
       }
+      if (next.size === 0){
+          setMultipleDelete(false)
+      }
       console.log(next)
       return next;
     });
@@ -220,7 +223,6 @@ export default function SessionsScreen() {
 >
   <Ionicons name="close" size={20} color="#555555" />
 </TouchableOpacity>
-<View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
   <TouchableOpacity
   style={s.cancelButton}
   onPress={() => {
@@ -228,10 +230,20 @@ export default function SessionsScreen() {
    
   }}
 >
+<Ionicons name="git-compare-outline" size={18} color="#4DB8FF" />
+<Text style={s.compareButton} > compare </Text>
+</TouchableOpacity>
+  <TouchableOpacity
+  style={s.cancelButton}
+  onPress={() => {
+    multipleHandleDelete(selectedIds);
+   
+  }}
+>
+  
 <Ionicons name="trash-outline" size={18} color="#FF4D4D" /></TouchableOpacity>
 </View>
 
-</View>
 )}
     <View >
       {/* FlatList rendert nur die sichtbaren Elemente – effizienter als map() für lange Listen */}
@@ -395,10 +407,11 @@ const s = StyleSheet.create({
     fontSize: 13,
   },
   cancelButton: {
-    width: 32,
+    width: 64,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  compareButton: {color: "#4DB8FF" ,fontSize: 11 }
 });
