@@ -41,7 +41,8 @@ export default function SessionsScreen() {
     laps: Lap[];
     temperature: number | null;
   };
-   
+  const [multipleDelete, setMultipleDelete] = useState<boolean>(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sessions, setSessions] = useState<Session[]>([]);
   // useFocusEffect läuft jedes Mal wenn dieser Screen sichtbar wird –
   // also auch wenn man von der Detailansicht zurücknavigiert.
@@ -110,23 +111,54 @@ export default function SessionsScreen() {
       },
     ]);
   }
-
-  async function multiplehandleDelete(id: string) {
-    // Erst nachfragen bevor wir löschen
-    Alert.alert('Löschen?', 'Diese Session wird entfernt.', [
-      { text: 'Abbrechen', style: 'cancel' },
-      {
-        text: 'Löschen', style: 'destructive',
-        onPress: async () => {
-          await deleteWorkout(id);
-          // Lokalen State aktualisieren ohne neu zu laden:
-          // filter() gibt ein neues Array zurück ohne die gelöschte Session
-          setSessions(s => s.filter(w => w.id !== id));
+  async function multipleHandleDelete(ids: Set<string>) {
+    Alert.alert(
+      'Remove?',
+      `${ids.size} session(s) will be removed .`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            // Alle Löschvorgänge parallel starten, statt nacheinander zu warten.
+            await Promise.all(
+              Array.from(ids).map(id => deleteWorkout(id))
+            );
+  
+            // Lokalen State aktualisieren: alle Sessions rauswerfen, deren ID im Set steht.
+            setSessions(s => s.filter(w => !ids.has(w.id)));
+  
+            // Auswahlmodus verlassen und Auswahl zurücksetzen.
+            setMultipleDelete(false);
+            setSelectedIds(new Set());
+          },
         },
-      },
-    ]);
+      ]
+    );
   }
 
+  // <TouchableOpacity onPress={() => multipleHandleDelete(selectedIds)}>
+  //   <Text>Löschen ({selectedIds.size})</Text>
+  // </TouchableOpacity>
+  
+  
+  
+
+
+
+  function toggleSelection(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);   // neues Set aus dem alten kopieren
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      console.log(next)
+      return next;
+    });
+  }
   // ── Hilfsfunktionen für Statistiken ──────────────────────────────────────
 
   // Berechnet den Durchschnitt eines numerischen Felds über alle Laps.
@@ -137,16 +169,71 @@ export default function SessionsScreen() {
       ? Math.round(vals.reduce((a: number, b: number) => a + b, 0) / vals.length)
       : null;
   }
-
   // Gibt den Maximalwert eines Felds über alle Laps zurück.
   function maxOf(laps: Lap[], key: string) {
     const vals = laps.map((l: any) => l[key]).filter((v: any) => v != null && v > 0 && v < 220);
     return vals.length ? Math.max(...vals) : null;
   }
 
+
+  function handleCardPress(item: Session) {
+    if (multipleDelete) {
+      toggleSelection(item.id);
+    } else {
+      router.push({ pathname: '/detail', params: { sessionId: item.id } });
+    }
+  }
+  function handleCardLongPress(item: Session) {
+    if (multipleDelete) {
+      // z.B. nichts tun, oder ebenfalls togglen
+    } else {
+      setMultipleDelete(true);
+      toggleSelection(item.id);
+    }
+  }
+
+
+/** 
+  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+  <Text style={s.date}>
+    {date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
+  </Text>
+
+  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+    <Ionicons name="thermometer-outline" size={14} color="#C8F135" />
+    <Text style={s.temperature}>
+      {item.temperature != null ? `${item.temperature.toFixed(1)}°C` : "--"}
+    </Text>
+  </View>
+ */  
   // ── UI ────────────────────────────────────────────────────────────────────
   return (
-    <View style={s.container}>
+<View style={s.container}>
+{multipleDelete && (
+  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+  <TouchableOpacity
+  style={s.cancelButton}
+  onPress={() => {
+    setMultipleDelete(false);
+    setSelectedIds(new Set());
+  }}
+>
+  <Ionicons name="close" size={20} color="#555555" />
+</TouchableOpacity>
+<View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+  <TouchableOpacity
+  style={s.cancelButton}
+  onPress={() => {
+    multipleHandleDelete(selectedIds);
+   
+  }}
+>
+<Ionicons name="trash-outline" size={18} color="#FF4D4D" /></TouchableOpacity>
+</View>
+
+</View>
+)}
+    <View >
       {/* FlatList rendert nur die sichtbaren Elemente – effizienter als map() für lange Listen */}
       <FlatList
         data={[...sessions].reverse()} // Neueste Session zuerst anzeigen
@@ -176,9 +263,7 @@ export default function SessionsScreen() {
             )}
           </View>
           <View style={{ flexDirection: 'row', gap: 12 }}>
-          <TouchableOpacity style={s.button} onPress={handleImport}>
-              <Text style={s.buttonText}> Remove multiple workouts</Text>
-            </TouchableOpacity>
+         
             <TouchableOpacity style={s.button} onPress={handleImport}>
               <Text style={s.buttonText}> Compare workouts</Text>
             </TouchableOpacity>
@@ -219,9 +304,10 @@ export default function SessionsScreen() {
           return (
             // Tippen → Detailansicht, Lang drücken → Löschen
             <TouchableOpacity
-              style={s.card}
-              onPress={() => router.push({ pathname: '/detail', params: { sessionId: item.id } })}
-              onLongPress={() => handleDelete(item.id)}
+              style={[s.card, selectedIds.has(item.id) && s.sleectedcard]}
+              onPress={() => handleCardPress(item)}
+              onLongPress={() => {handleCardLongPress(item);
+            console.log(multipleDelete)}}
             >
               {/* Datum des Workouts (aus der FIT-Datei, nicht Importdatum) */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -268,6 +354,8 @@ export default function SessionsScreen() {
         }}
       />
     </View>
+    </View>
+
   );
 }
 
@@ -291,6 +379,8 @@ const s = StyleSheet.create({
   buttonText: { color: '#C8F135', fontWeight: '700', fontSize: 15 },
   empty: { color: '#555555', textAlign: 'center', marginTop: 32 },
   card: { backgroundColor: '#222222', borderRadius: 12, padding: 16 },
+  sleectedcard: { backgroundColor: '#222222', borderColor: '#FFFFFF', borderRadius: 12, padding: 16 ,borderWidth: 2,       },
+
   date: { color: '#F0F0F0', fontWeight: '700', fontSize: 16, marginBottom: 12 },
   stats: { flexDirection: 'row', justifyContent: 'space-between' },
   // flexDirection: 'row' = Elemente nebeneinander statt untereinander
@@ -303,5 +393,12 @@ const s = StyleSheet.create({
     textAlign: "right",
     color: '#C8F135', // euer Akzent
     fontSize: 13,
+  },
+  cancelButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
