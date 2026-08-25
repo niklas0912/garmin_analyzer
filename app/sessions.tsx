@@ -226,8 +226,7 @@ export default function SessionsScreen() {
   <TouchableOpacity
   style={s.cancelButton}
   onPress={() => {
-    multipleHandleDelete(selectedIds);
-   
+    router.push({ pathname: '/compare',  params: { workout, ids: Array.from(selectedIds).join(',') } })
   }}
 >
 <Ionicons name="git-compare-outline" size={18} color="#4DB8FF" />
@@ -237,7 +236,6 @@ export default function SessionsScreen() {
   style={s.cancelButton}
   onPress={() => {
     multipleHandleDelete(selectedIds);
-   
   }}
 >
   
@@ -276,9 +274,7 @@ export default function SessionsScreen() {
           </View>
           <View style={{ flexDirection: 'row', gap: 12 }}>
          
-            <TouchableOpacity style={s.button} onPress={handleImport}>
-              <Text style={s.buttonText}> Compare workouts</Text>
-            </TouchableOpacity>
+           
             </View>
           </View>
 
