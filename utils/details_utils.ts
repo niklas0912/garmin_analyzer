@@ -14,7 +14,7 @@ export function applyThresholdToLaps(laps: Lap[], thresholdInput: string): Lap[]
     }));
   }
 
- function formatThresholdInput(raw: string) {
+export function formatThresholdInput(raw: string) {
     // Nur Ziffern behalten
     const digits = raw.replace(/[^0-9]/g, '').slice(0, 3); // max 3 Ziffern, z.B. "430"
   
@@ -24,7 +24,7 @@ export function applyThresholdToLaps(laps: Lap[], thresholdInput: string): Lap[]
     const sec = digits.slice(-2);
     return `${min}:${sec}`;
   }
-  function meanOf(laps: any[], key: string) {
+export function meanOf(laps: any[], key: string) {
     const vals = laps.map((l: any) => l[key]).filter((v: any) => v != null && v > 0 && v < 220);
     return vals.length ? Math.round(vals.reduce((a: number, b: number) => a + b, 0) / vals.length) : null;
   }
