@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { meanOf } from "../utils/details_utils";
 import { formatPace } from '../utils/fitParser';
-import { loadWorkoutsByName } from '../utils/storage';
+import { loadWorkoutsByName } from '../utils/storage.ts';
 import { Lap, Session } from '../utils/types';
 
 

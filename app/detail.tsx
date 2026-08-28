@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { applyThresholdToLaps, formatThresholdInput, meanOf } from "../utils/details_utils";
 import { formatPace } from '../utils/fitParser';
-import { loadAllWorkouts, updateWorkout } from '../utils/storage';
+import { loadAllWorkouts, updateWorkout } from '../utils/storage.ts';
 /**
  * DetailScreen
  *

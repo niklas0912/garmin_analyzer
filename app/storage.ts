@@ -1,0 +1,131 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { File } from 'expo-file-system';
+import type { Session } from '../utils/types';
+
+// Schlüssel, unter dem ALLE Workouts als ein einziges JSON-Array
+// in AsyncStorage gespeichert werden. "_v1" als Versions-Suffix,
+// damit man das Speicherformat später (z.B. bei Strukturänderungen)
+// über einen neuen Key ("workouts_v2") migrieren könnte, ohne alte
+// Daten zu zerstören.
+const KEY = 'workouts_v1';
+
+/**
+ * Speichert ein neues Workout (bzw. überschreibt ein vorhandenes mit
+ * gleicher ID). AsyncStorage kennt kein "Anhängen" an bestehende Daten,
+ * deshalb muss hier immer der komplette Datensatz neu zusammengebaut
+ * und als Ganzes wieder gespeichert werden.
+ *
+ * Ablauf:
+ * 1. Alle vorhandenen Workouts laden
+ * 2. Ein eventuell vorhandenes Workout mit derselben ID entfernen
+ *    (verhindert Duplikate, falls z.B. dieselbe FIT-Datei zweimal
+ *    importiert wird)
+ * 3. Das neue Workout hinten anhängen und alles zusammen speichern
+ */
+export async function saveWorkout(workout: Session): Promise<void> {
+  const existing = await loadAllWorkouts();
+  const filtered = existing.filter(w => w.id !== workout.id);
+  await AsyncStorage.setItem(KEY, JSON.stringify([...filtered, workout]));
+}
+
+/**
+ * Lädt alle Workouts eines bestimmten Namens/Typs (z.B. "Intervalle 400m"),
+ * chronologisch aufsteigend sortiert nach Datum (älteste zuerst).
+ * Wird u.a. für die Sessions-Liste und die Fortschritts-Charts genutzt,
+ * die auf eine zeitliche Reihenfolge angewiesen sind.
+ */
+export async function loadWorkoutsByName(name: string): Promise<Session[]> {
+  const all = await loadAllWorkouts();
+  return all
+    .filter(w => w.name === name)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
+/**
+ * Lädt sämtliche gespeicherten Workouts, unabhängig vom Typ.
+ * Bildet die Basis für alle anderen Storage-Funktionen dieser Datei,
+ * da AsyncStorage nur EIN großes JSON-Array unter `KEY` verwaltet.
+ *
+ * Wandelt dabei das `date`-Feld jedes Workouts von einem reinen
+ * JSON-String zurück in ein echtes `Date`-Objekt, da beim
+ * Serialisieren (JSON.stringify) Date-Objekte automatisch zu Strings
+ * werden und dieser Schritt sie beim Laden wieder "reparieren" muss.
+ */
+export async function loadAllWorkouts(): Promise<Session[]> {
+  const raw = await AsyncStorage.getItem(KEY);
+  if (!raw) return [];
+  const parsed = JSON.parse(raw) as Session[];
+  return parsed.map(w => ({ ...w, date: new Date(w.date) }));
+}
+
+/**
+ * Entfernt ein einzelnes Workout anhand seiner ID unwiderruflich
+ * aus dem Speicher.
+ */
+export async function deleteWorkout(id: string): Promise<void> {
+  const all = await loadAllWorkouts();
+  const workout = all.find(w => w.id === id);
+
+  if (workout?.fitFileUri) {
+    const file = new File(workout.fitFileUri);
+    if (file.exists) {
+      file.delete();
+    }
+  }
+
+  await AsyncStorage.setItem(KEY, JSON.stringify(all.filter(w => w.id !== id)));
+}
+
+/**
+ * Aktualisiert ein bereits vorhandenes Workout (z.B. nachdem in
+ * detail.tsx eine Runde als "schnell" markiert wurde). Im Unterschied
+ * zu saveWorkout wird hier die Position in der Liste beibehalten
+ * (map statt filter + append), auch wenn das Endergebnis dasselbe ist.
+ *
+ * Hinweis: Enthält das übergebene `workout` keine ID, die in den
+ * gespeicherten Daten existiert, passiert nichts – map() ersetzt
+ * dann einfach kein Element.
+ */
+export async function updateWorkout(workout: Session): Promise<void> {
+  const existing = await loadAllWorkouts();
+  const updated = existing.map(w => (w.id === workout.id ? workout : w));
+  await AsyncStorage.setItem(KEY, JSON.stringify(updated));
+}
+
+export interface WorkoutType {
+  name: string;
+  color: string;
+}
+
+const TYPES_KEY = 'workout_types_v1';
+
+// Diese drei Typen sind der Startzustand, falls noch nichts gespeichert wurde
+const DEFAULT_TYPES: WorkoutType[] = [
+  { name: 'Intervalle 400m', color: '#C8F135' },
+  { name: 'Intervalle 6min', color: '#4DB8FF' },
+  { name: 'Intervalle all Out', color: '#FF4D4D' },
+];
+
+/**
+ * Lädt alle Workout-Typen. Beim allerersten Aufruf (noch nichts gespeichert)
+ * werden die DEFAULT_TYPES zurückgegeben und direkt gespeichert, damit
+ * spätere Aufrufe konsistent sind.
+ */
+export async function loadWorkoutTypes(): Promise<WorkoutType[]> {
+  const raw = await AsyncStorage.getItem(TYPES_KEY);
+  if (!raw) {
+    await AsyncStorage.setItem(TYPES_KEY, JSON.stringify(DEFAULT_TYPES));
+    return DEFAULT_TYPES;
+  }
+  return JSON.parse(raw) as WorkoutType[];
+}
+
+/**
+ * Fügt einen neuen Workout-Typ hinzu und speichert die aktualisierte Liste.
+ */
+export async function addWorkoutType(type: WorkoutType): Promise<WorkoutType[]> {
+  const existing = await loadWorkoutTypes();
+  const updated = [...existing, type];
+  await AsyncStorage.setItem(TYPES_KEY, JSON.stringify(updated));
+  return updated;
+}
