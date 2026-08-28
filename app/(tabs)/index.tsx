@@ -1,4 +1,5 @@
 // da filename index.tsx: startseite
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -61,8 +62,23 @@ export default function WorkoutsScreen() {
 
   return (
     <View style={s.container}>
-      <Text style={s.title}>Garmin Analyzer</Text>
-      <Text style={s.subtitle}>Choose or add a workout type</Text>
+          
+         <View style={{ flexDirection: 'row', gap: 15 }}>
+          <View style={{flex:0.2}}>
+         <Text style={s.title}>Garmin Analyzer</Text>
+         <Text style={s.subtitle}>Choose or add a workout </Text>
+
+         </View>
+         <View style={{flex:0.2}}>
+              <TouchableOpacity
+                style={[s.button, { borderColor: '#4DB8FF', marginBottom: 24 }]}
+                onPress={() => router.push({ pathname: '/progress', params: { workout } })}
+              >
+                  <Ionicons name="settings-outline" size={30} color="#333333" />
+              </TouchableOpacity>
+      </View>
+     
+      </View>
 
       {types.map(workout => (
         <TouchableOpacity
@@ -116,5 +132,13 @@ addButton: {
   justifyContent: 'center', borderWidth: 1, borderColor: '#C8F135',
 },
 addButtonText: { color: '#C8F135', fontSize: 20, fontWeight: '700' },
+
+button: {
+  backgroundColor: '#0D0D0D', borderRadius: 12, padding: 16,
+  alignItems: 'flex-end',  // Text horizontal zentrieren
+  borderWidth: 0, borderColor: '#C8F135', marginBottom: 24,
+},
+buttonText: { color: '#C8F135', fontWeight: '700', fontSize: 15 },
+
 });
 
