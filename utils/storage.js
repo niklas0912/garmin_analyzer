@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { File } from 'expo-file-system';
 
 // Schlüssel, unter dem ALLE Workouts als ein einziges JSON-Array
 // in AsyncStorage gespeichert werden. "_v1" als Versions-Suffix,
@@ -68,8 +69,23 @@ export async function loadAllWorkouts() {
  *
  * @param {string} id - Die ID des zu löschenden Workouts
  */
+
 export async function deleteWorkout(id) {
   const all = await loadAllWorkouts();
+  const workout = all.find(w => w.id === id);
+  console.log("start delete")
+  console.log('workout to delete:', workout);
+  console.log('fitFileUri:', workout?.fitFileUri);
+  if (workout?.fitFileUri) {
+    console.log("file exists before delete")
+    const file = new File(workout.fitFileUri);
+    if (file.exists) {
+      file.delete();
+      console.log('file deleted');
+
+    }
+  }
+
   await AsyncStorage.setItem(KEY, JSON.stringify(all.filter(w => w.id !== id)));
 }
 

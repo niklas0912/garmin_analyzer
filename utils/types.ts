@@ -14,4 +14,6 @@ export type Lap = {
     date: Date;
     laps: Lap[];
     temperature: number | null;
+    fitFileHash?: string;
+    fitFileUri?: string;
   };

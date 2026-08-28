@@ -6,16 +6,10 @@ import { formatPace } from '../utils/fitParser';
 import { loadWorkoutsByName } from '../utils/storage';
 // oder: import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
-
+import { Session } from '../utils/types';
 // Breite des Charts: Bildschirmbreite abzüglich horizontalem Padding (2x 32px = 64px)
 const W = Dimensions.get('window').width - 64;
-type Session = {
-  id: string;
-  name: string;
-  date: Date;
-  laps: any[];
-  temperature: number
-};
+
 /**
  * Berechnet den Durchschnitt eines Arrays von Zahlen.
  * Filtert dabei null/undefined sowie Werte <= 0 heraus (z.B. fehlerhafte
@@ -124,7 +118,7 @@ export default function ProgressScreen() {
     return {
       //value: toSecKm(avg),
       value: avg ? (1000/60) * avg : undefined,
-      label: new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+      label: new Date(w.date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }),
     };
   });
 
@@ -134,7 +128,7 @@ export default function ProgressScreen() {
     const vals = w.laps.map((l: any) => l.pace).filter((v: any) => v != null && v > 0);
     const fastest = vals.length ? Math.min(...vals) : null;
     return {  value: fastest ? (1000/60) * fastest : undefined,
-              label: new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+              label: new Date(w.date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }),
 
      };
   });
@@ -145,7 +139,7 @@ export default function ProgressScreen() {
     const vals = fastLaps.map((l: any) => l.pace).filter((v: any) => v != null && v > 0);
     const slowest = vals.length ? Math.max(...vals) : null;
     return {  value: slowest ? (1000/60) * slowest : undefined, 
-              label: new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+              label: new Date(w.date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }),
 
     };
   });
@@ -163,7 +157,7 @@ export default function ProgressScreen() {
     }
     return {
       value: val,
-      label: new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+      label: new Date(w.date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }),
     };
   });
 
@@ -343,7 +337,7 @@ export default function ProgressScreen() {
         return (
           <View key={w.id} style={[s.row, i % 2 === 0 && s.rowEven]}>
             <Text style={s.td}>
-              {new Date(w.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}</Text>
+              {new Date(w.date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: '2-digit' })}</Text>
               <Text style={s.td}> {w.temperature?.toFixed(1) ?? "--"} </Text>
             <Text style={[s.td, { color: '#4DB8FF' }]}>{formatPace(avgGap)}</Text>
             <Text style={[s.td, { color: '#C8F135' }]}>{formatPace(fastest)}</Text>

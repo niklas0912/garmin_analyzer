@@ -1,10 +1,11 @@
+import { Lap, Session } from '@/utils/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { formatPace, parsePace } from '../utils/fitParser';
+import { applyThresholdToLaps, formatThresholdInput, meanOf } from "../utils/details_utils";
+import { formatPace } from '../utils/fitParser';
 import { loadAllWorkouts, updateWorkout } from '../utils/storage';
-
 /**
  * DetailScreen
  *
@@ -21,7 +22,7 @@ export default function DetailScreen() {
   const { sessionId } = useLocalSearchParams();
 
   // Die geladene Session inkl. aller Laps; null solange noch nicht geladen
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session>();
 
   // Eingabe für die manuelle Pace-Schwelle (Format m:ss), z.B. "4:30"
   const [thresholdInput, setThresholdInput] = useState('4:15');
@@ -56,15 +57,17 @@ export default function DetailScreen() {
    * @param index - Der Lap-Index der umzuschaltenden Runde
    */
   function toggleLap(index: number) {
-    console.log('Toggle Lap:', index);
-    console.log('Laps indices:', session.laps.map((l: any) => l.index));
+    if (!session) return;
 
-    const updatedLaps = session.laps.map((lap: any) =>
+    console.log('Toggle Lap:', index);
+    console.log('Laps indices:', session.laps.map((l: Lap) => l.index));
+
+    const updatedLaps = session.laps.map((lap: Lap) =>
       lap.index === index ? { ...lap, isFast: !lap.isFast } : lap
     );
-    console.log('isFast nach update:', updatedLaps.map((l: any) => l.isFast));
+    console.log('isFast nach update:', updatedLaps.map((l: Lap) => l.isFast));
 
-    const updatedSession = { ...session, laps: updatedLaps };
+    const updatedSession:Session = { ...session, laps: updatedLaps };
     setSession(updatedSession);       // optimistisches Update der UI
     updateWorkout(updatedSession);    // Persistierung im Speicher
   }
@@ -74,24 +77,21 @@ export default function DetailScreen() {
    * der eingegebenen Schwelle liegt. Erwartet Eingabe im Format m:ss.
    */
   function applyThreshold() {
-    const thresholdSecPerMeter = parsePace(thresholdInput);
-    if (thresholdSecPerMeter == null) {
+    if (!session) return;
+    const updatedLaps = applyThresholdToLaps(session.laps, thresholdInput);
+  
+    if (updatedLaps == null) {
       Alert.alert('Ungültige Eingabe', 'Bitte im Format m:ss eingeben, z.B. 4:30');
       return;
     }
-
-    const updatedLaps = session.laps.map((lap: any) => ({
-      ...lap,
-      isFast: lap.pace != null && lap.pace <= thresholdSecPerMeter,
-    }));
-
+  
     const updatedSession = { ...session, laps: updatedLaps };
     setSession(updatedSession);
     updateWorkout(updatedSession);
   }
 
   // Alle als "schnell" markierten Runden, plus Flag ob überhaupt welche existieren
-  const fastLaps = session.laps.filter((l: any) => l.isFast);
+  const fastLaps = session.laps.filter((l: Lap) => l.isFast);
   const hasFastLaps = fastLaps.length > 0;
 
   /**
@@ -104,22 +104,10 @@ export default function DetailScreen() {
    * @returns Gerundeter Durchschnittswert, oder null falls keine gültigen Werte vorhanden sind
    */
 
-  function formatThresholdInput(raw: string) {
-    // Nur Ziffern behalten
-    const digits = raw.replace(/[^0-9]/g, '').slice(0, 3); // max 3 Ziffern, z.B. "430"
-  
-    if (digits.length <= 1) return digits;
-    // Letzte 2 Ziffern sind Sekunden, Rest sind Minuten
-    const min = digits.slice(0, -2);
-    const sec = digits.slice(-2);
-    return `${min}:${sec}`;
-  }
-  function meanOf(laps: any[], key: string) {
-    const vals = laps.map((l: any) => l[key]).filter((v: any) => v != null && v > 0 && v < 220);
-    return vals.length ? Math.round(vals.reduce((a: number, b: number) => a + b, 0) / vals.length) : null;
-  }
 
-  const visibleLaps = showOnlyFast ? fastLaps : session.laps;
+
+
+  const visibleLaps: Lap[] = showOnlyFast ? fastLaps : session.laps;
   return (
     <ScrollView contentContainerStyle={s.list}>
       {/* Kopfbereich: Datum der Session */}
@@ -131,7 +119,7 @@ export default function DetailScreen() {
     </Text> */}
        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
       <Text style={s.title}>
-        {date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
+        {date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
       </Text>
     
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -146,7 +134,7 @@ export default function DetailScreen() {
       {/* Zusammenfassungs-Box für "schnelle" Runden, nur wenn welche markiert sind */}
       {hasFastLaps && (
         <View style={s.summary}>
-          <Text style={s.summaryTitle}>Fast laps only ({fastLaps.length})</Text>
+          <Text style={s.summaryTitle}>Fast laps metrics ({fastLaps.length})</Text>
           <View style={s.summaryStats}>
             <View style={s.stat}>
               <Text style={s.statLabel}>Ø HR</Text>

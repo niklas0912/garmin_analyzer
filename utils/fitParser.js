@@ -360,7 +360,7 @@ function parseFit(buffer) {
               lap.lap_trigger = val;
               break;
           }
-      
+          lap.isFast = false;
           fieldOffset += f.fieldSize;
         }
       
@@ -502,6 +502,7 @@ export async function parseFitFile(uri, workoutName) {
 
       // Dauer in Sekunden.
       duration: lap.total_elapsed_time || 0,
+      isFast: false
     };
   });
 

@@ -29,4 +29,6 @@ export function meanOf(laps: any[], key: string) {
     return vals.length ? Math.round(vals.reduce((a: number, b: number) => a + b, 0) / vals.length) : null;
   }
 
+
+  
  

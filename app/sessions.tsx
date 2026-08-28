@@ -7,6 +7,8 @@
 //   - Den Fortschritt anzeigen (progress.tsx)
 //   - Eine Session lang drücken → Löschen
 // ─────────────────────────────────────────────────────────────────────────────
+import * as Crypto from 'expo-crypto';
+import { Directory, File, Paths } from 'expo-file-system';
 
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -14,7 +16,9 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { formatPace, parseFitFile } from '../utils/fitParser';
-import { deleteWorkout, loadWorkoutsByName, saveWorkout } from '../utils/storage';
+import { deleteWorkout, loadAllWorkouts, loadWorkoutsByName, saveWorkout } from '../utils/storage';
+import { Lap, Session } from '../utils/types';
+
 export default function SessionsScreen() {
   // useLocalSearchParams liest die URL-Parameter aus.
   // Wenn wir von der Startseite navigieren mit { workout: "Intervalle 400m" },
@@ -24,23 +28,7 @@ export default function SessionsScreen() {
   // useState speichert die Liste der Sessions im Arbeitsspeicher.
   // Wenn sich sessions ändert, rendert React Native den Screen automatisch neu.
   // <any[]> sagt TypeScript: das ist ein Array, wir kümmern uns nicht um den genauen Typ.
-  type Lap = {
-    index: number;
-    distance: number;
-    avgHr: number | null;
-    maxHr: number | null;
-    pace: number | null;
-    isFast: boolean;
-    temperature: number | null;
-  };
-  
-  type Session = {
-    id: string;
-    name: string;
-    date: Date;
-    laps: Lap[];
-    temperature: number | null;
-  };
+
   const [multipleDelete, setMultipleDelete] = useState<boolean>(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -59,42 +47,94 @@ export default function SessionsScreen() {
   // async/await: Wir warten auf Nutzeraktionen (Datei auswählen) und
   // auf asynchrone Operationen (Datei lesen, speichern).
   async function handleImport() {
-    try {
-      // Öffnet den nativen Datei-Browser des Handys.
-      // type: '*/*' = alle Dateitypen erlaubt (FIT-Dateien haben keinen Standard-MIME-Type)
-      // copyToCacheDirectory: true = Datei in einen temporären Ordner kopieren,
-      // damit wir sie lesen können
+    
       const result = await DocumentPicker.getDocumentAsync({
         type: '*/*',
         copyToCacheDirectory: true,
       });
-
-      // Nutzer hat abgebrochen → nichts tun
+  
       if (result.canceled) return;
+      const pickedFile = result.assets[0];
+  
+      const file = new File(pickedFile.uri);
+      const base64 = await file.base64();   
+      
+      const fileHash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        base64
+      );
+  
+      const allWorkouts = await loadAllWorkouts();
+      const alreadyImported = allWorkouts.some((w: any) => w.fitFileHash === fileHash);
+  
+      if (alreadyImported) {
+        Alert.alert(
+          'Already imported',
+          'This FIT file has already been imported. Import it again anyway?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Import anyway', onPress: () => proceedImport(pickedFile, base64, fileHash) },
+          ]
+        );
+        return;
+      }
+  
+      await proceedImport(file, base64, fileHash);
+ 
+  
 
-      // result.assets ist ein Array – wir nehmen die erste (und einzige) Datei
-      const file = result.assets[0];
 
-      // FIT-Datei parsen: Binärdaten → JavaScript-Objekt mit Laps, Datum, etc.
-      const data = await parseFitFile(file.uri, workout as string);
 
-      // Im lokalen Speicher (AsyncStorage) sichern
-      await saveWorkout(data);
 
-      // Liste neu laden damit die neue Session sofort erscheint
-      const updated = await loadWorkoutsByName(workout as string);
-      setSessions(updated as Session[]);
+    //   // FIT-Datei parsen: Binärdaten → JavaScript-Objekt mit Laps, Datum, etc.
+    //   const data = await parseFitFile(file.uri, workout as string);
 
-      Alert.alert('Importiert!', `${data.laps.length} Runden gespeichert.`);
-    } catch (e) {
-      if (e instanceof Error) {
-        Alert.alert('Fehler', e.message);
-      } else {
-        Alert.alert('Fehler', 'Ein unbekannter Fehler ist aufgetreten.');
-    }
-    }
+    //   // Im lokalen Speicher (AsyncStorage) sichern
+    //   await saveWorkout(data);
+
+    //   // Liste neu laden damit die neue Session sofort erscheint
+    //   const updated = await loadWorkoutsByName(workout as string);
+    //   setSessions(updated as Session[]);
+
+    //   Alert.alert('Importiert!', `${data.laps.length} Runden gespeichert.`);
+    // } catch (e) {
+    //   if (e instanceof Error) {
+    //     Alert.alert('Fehler', e.message);
+    //   } else {
+    //     Alert.alert('Fehler', 'Ein unbekannter Fehler ist aufgetreten.');
+    // }
+    // }
   }
 
+  async function proceedImport(file: any, base64: string, fileHash: string) {
+    const data = await parseFitFile(file.uri, workout as string);
+  
+    // Rohdatei sauber ablegen, Dateiname an die Workout-ID gekoppelt
+    const fitFilesDir = new Directory(Paths.document, 'fit-files');
+    if (!fitFilesDir.exists) {
+      fitFilesDir.create();
+    } ;
+  
+    const storedFile = new File(fitFilesDir, `${data.id}.fit`);
+      storedFile.write(base64);
+    const storedPath = `${fitFilesDir}${data.id}.fit`;
+  
+  
+    // Hash und Pfad zur Rohdatei im Workout-Objekt mitspeichern
+    const workoutWithMeta:Session = {
+      ...data,
+      fitFileHash: fileHash,
+      fitFileUri: storedFile.uri,
+    };
+  
+    await saveWorkout(workoutWithMeta);
+  
+    const updated = await loadWorkoutsByName(workout as string);
+    setSessions(updated as Session[]);
+    const entries = fitFilesDir.list();
+    console.log('Files in fit-files dir:', entries.map(e => e.name));
+    Alert.alert('Importiert!', `${data.laps.length} Runden gespeichert.`);
+  }
   // ── Session löschen ───────────────────────────────────────────────────────
   async function handleDelete(id: string) {
     // Erst nachfragen bevor wir löschen
@@ -112,6 +152,11 @@ export default function SessionsScreen() {
     ]);
   }
   async function multipleHandleDelete(ids: Set<string>) {
+//     const fitFilesDir = new Directory(Paths.document, 'fit-files');
+// if (fitFilesDir.exists) {
+//   fitFilesDir.delete();
+// }
+// fitFilesDir.create();
     Alert.alert(
       'Remove?',
       `${ids.size} session(s) will be removed .`,
@@ -122,9 +167,9 @@ export default function SessionsScreen() {
           style: 'destructive',
           onPress: async () => {
             // Alle Löschvorgänge parallel starten, statt nacheinander zu warten.
-            await Promise.all(
-              Array.from(ids).map(id => deleteWorkout(id))
-            );
+            for (const id of ids) {
+              await deleteWorkout(id);
+            }
   
             // Lokalen State aktualisieren: alle Sessions rauswerfen, deren ID im Set steht.
             setSessions(s => s.filter(w => !ids.has(w.id)));
@@ -142,7 +187,11 @@ export default function SessionsScreen() {
   //   <Text>Löschen ({selectedIds.size})</Text>
   // </TouchableOpacity>
   
-  
+  function debugDummy(){
+    const fitFilesDir = new Directory(Paths.document, 'fit-files');
+    const entries = fitFilesDir.list();
+    console.log('Files in fit-files dir:', entries.map(e => e.name));
+  }
   
 
 
@@ -195,7 +244,11 @@ export default function SessionsScreen() {
     }
   }
 
-
+//debug function
+function log_session() {
+  sessions.map(ses =>  {console.log(ses.date)});
+  console.log(workout)
+}
 /** 
   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
   <Text style={s.date}>
@@ -223,6 +276,8 @@ export default function SessionsScreen() {
 >
   <Ionicons name="close" size={20} color="#555555" />
 </TouchableOpacity>
+{selectedIds.size < 3 && (
+
   <TouchableOpacity
   style={s.cancelButton}
   onPress={() => {
@@ -232,6 +287,7 @@ export default function SessionsScreen() {
 <Ionicons name="git-compare-outline" size={18} color="#4DB8FF" />
 <Text style={s.compareButton} > compare </Text>
 </TouchableOpacity>
+)}
   <TouchableOpacity
   style={s.cancelButton}
   onPress={() => {
@@ -259,7 +315,7 @@ export default function SessionsScreen() {
 
             {/* Import-Button */}
             <TouchableOpacity style={s.button} onPress={handleImport}>
-              <Text style={s.buttonText}>+ FIT-Datei importieren</Text>
+              <Text style={s.buttonText}>+ Import .fit file</Text>
             </TouchableOpacity>
 
             {/* Fortschritt-Button – nur anzeigen wenn mindestens eine Session vorhanden */}
@@ -268,13 +324,17 @@ export default function SessionsScreen() {
                 style={[s.button, { borderColor: '#4DB8FF', marginBottom: 24 }]}
                 onPress={() => router.push({ pathname: '/progress', params: { workout } })}
               >
-                <Text style={[s.buttonText, { color: '#4DB8FF' }]}>📈 Fortschritt anzeigen</Text>
+                <Text style={[s.buttonText, { color: '#4DB8FF' }]}>📈 Show Progress</Text>
               </TouchableOpacity>
             )}
           </View>
           <View style={{ flexDirection: 'row', gap: 12 }}>
-         
-           
+         <TouchableOpacity
+            style={[s.button, { borderColor: '#4DB8FF', marginBottom: 24 }]}
+            onPress={debugDummy}
+          >
+            <Text style={[s.buttonText, { color: '#4DB8FF' }]}>📈 Fortschritt anzeigen</Text>
+          </TouchableOpacity>
             </View>
           </View>
 
@@ -320,7 +380,7 @@ export default function SessionsScreen() {
               {/* Datum des Workouts (aus der FIT-Datei, nicht Importdatum) */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
   <Text style={s.date}>
-    {date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
+    {date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
   </Text>
 
   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>

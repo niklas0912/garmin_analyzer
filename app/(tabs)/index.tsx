@@ -62,7 +62,7 @@ export default function WorkoutsScreen() {
   return (
     <View style={s.container}>
       <Text style={s.title}>Garmin Analyzer</Text>
-      <Text style={s.subtitle}>Choose a workout type</Text>
+      <Text style={s.subtitle}>Choose or add a workout type</Text>
 
       {types.map(workout => (
         <TouchableOpacity
@@ -71,7 +71,7 @@ export default function WorkoutsScreen() {
           onPress={() => router.push({ pathname: '/sessions', params: { workout: workout.name } })}
         >
           <Text style={[s.cardTitle, { color: workout.color }]}>{workout.name}</Text>
-          <Text style={s.cardHint}>Tippen → Sessions · Lang drücken → Import</Text>
+          {/* <Text style={s.cardHint}>Tippen → Sessions · Lang drücken → Import</Text> */}
         </TouchableOpacity>
       ))}
 
