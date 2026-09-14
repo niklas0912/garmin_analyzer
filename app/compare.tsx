@@ -39,7 +39,7 @@ return (
                    {showOnlyFast ? 'Show all' : 'Fast laps only'}
                  </Text>
                </TouchableOpacity>
-    <View style={{ flexDirection: 'row', gap: 8 }}>
+    <View style={{ flexDirection: 'row', gap: 20 }}>
     {sessions.map(session => {
     const date = new Date(session.date);
     const fastLaps = session.laps.filter((l: Lap) => l.isFast);

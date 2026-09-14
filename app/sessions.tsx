@@ -116,9 +116,7 @@ export default function SessionsScreen() {
     } ;
   
     const storedFile = new File(fitFilesDir, `${data.id}.fit`);
-      storedFile.write(base64);
-    const storedPath = `${fitFilesDir}${data.id}.fit`;
-  
+    storedFile.write(base64, { encoding: 'base64' });  
   
     // Hash und Pfad zur Rohdatei im Workout-Objekt mitspeichern
     const workoutWithMeta:Session = {
@@ -132,7 +130,8 @@ export default function SessionsScreen() {
     const updated = await loadWorkoutsByName(workout as string);
     setSessions(updated as Session[]);
     const entries = fitFilesDir.list();
-    console.log('Files in fit-files dir:', entries.map(e => e.name));
+    const pathToDir = fitFilesDir.uri
+    console.log('Files in fit-files dir (name=' ,pathToDir,') :', entries.map(e => e.name));
     Alert.alert('Importiert!', `${data.laps.length} Runden gespeichert.`);
   }
   // ── Session löschen ───────────────────────────────────────────────────────

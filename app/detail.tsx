@@ -4,7 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { applyThresholdToLaps, formatThresholdInput, meanOf } from "../utils/details_utils";
-import { formatPace } from '../utils/fitParser';
+import { formatPace, parseFitFile } from '../utils/fitParser';
 import { loadAllWorkouts, updateWorkout } from '../utils/storage';
 /**
  * DetailScreen
@@ -34,9 +34,7 @@ export default function DetailScreen() {
   useEffect(() => {
     loadAllWorkouts().then((all: any[]) => {
       console.log('Alle IDs:', all.map(w => w.id));
-      console.log('Suche:', sessionId);
       const found = all.find((w: any) => w.id === sessionId);
-      console.log('Gefunden:', found ? 'ja' : 'nein');
 
       if (found) setSession(found);
     });
@@ -89,6 +87,14 @@ export default function DetailScreen() {
     setSession(updatedSession);
     updateWorkout(updatedSession);
   }
+
+async function reparse_workout(workoutUri:string, workoutName:string):Promise<void> {
+
+  const reparsedSession:Session = await parseFitFile(workoutUri,workoutName)
+  console.log(reparsedSession.laps.length)
+  setSession(reparsedSession);       // optimistisches Update der UI
+  updateWorkout(reparsedSession);    // Persistierung im Speicher
+} 
 
   // Alle als "schnell" markierten Runden, plus Flag ob überhaupt welche existieren
   const fastLaps = session.laps.filter((l: Lap) => l.isFast);
@@ -175,8 +181,9 @@ export default function DetailScreen() {
           <Text style={s.thresholdButtonText}>Select threshhold</Text>
         </TouchableOpacity>
       </View>
-      {hasFastLaps && (
-        
+     
+     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+
   <TouchableOpacity
     style={s.filterToggle}
     onPress={() => setShowOnlyFast(!showOnlyFast)}
@@ -185,7 +192,16 @@ export default function DetailScreen() {
       {showOnlyFast ? 'Show all' : 'Fast laps only'}
     </Text>
   </TouchableOpacity>
-)}
+  {session.fitFileUri && (
+  <TouchableOpacity
+    style={s.filterToggle}
+    onPress={() =>reparse_workout(session.fitFileUri!,session.name)}
+  >
+    <Text style={s.filterToggleText}>
+Reparse    </Text>
+  </TouchableOpacity>
+  )}
+</View>
       {/* Tabellenkopf für die Lap-Liste */}
       <View style={s.tableHeader}>
         <Text style={[s.th, { flex: 0.5 }]}>#</Text>
