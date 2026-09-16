@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   },
   dayNumber: {
     color: COLORS.muted,
-    fontSize: 12,
+    fontSize: 15,
     marginBottom: 2,
   },
   dot: {

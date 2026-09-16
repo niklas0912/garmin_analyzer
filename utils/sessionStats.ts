@@ -5,7 +5,10 @@ import type { Session } from './types';
 
 // Datum -> 'YYYY-MM-DD' Key, unabhängig von Uhrzeit
 export function dateKey(d: Date): string {
-  return d.toISOString().split('T')[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function groupSessionsByDate(sessions: Session[]): Record<string, Session[]> {
