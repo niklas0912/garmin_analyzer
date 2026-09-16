@@ -131,6 +131,13 @@ export async function addWorkoutType(type: WorkoutType): Promise<WorkoutType[]> 
 }
 
 
+export async function deleteWorkoutType(type: WorkoutType): Promise<WorkoutType[]> {
+  const existing = await loadWorkoutTypes();
+  const updated = existing.filter(wType => wType.name !== type.name);
+  await AsyncStorage.setItem(TYPES_KEY, JSON.stringify(updated));
+  return updated;
+}
+
 const NOTES_KEY = 'calendar_notes_v1';
 
 export async function loadDayNotes(): Promise<Record<string, string>> {

@@ -2,8 +2,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { addWorkoutType, loadWorkoutTypes } from '../../utils/storage';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { addWorkoutType, deleteWorkoutType, loadWorkoutTypes } from '../../utils/storage';
 
 /*
 router	Navigation
@@ -60,6 +60,24 @@ export default function WorkoutsScreen() {
     setNewName('');
   }
 
+
+function handleDelete(wt: WorkoutType) {
+  Alert.alert(
+    'Delete Workout Type',
+    `Are you sure you want to delete "${wt.name}"? This cannot be undone.`,
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const updated = await deleteWorkoutType(wt);
+          setTypes(updated);
+        },
+      },
+    ]
+  );
+}
   return (
     <View style={s.container}>
           
@@ -85,6 +103,7 @@ export default function WorkoutsScreen() {
           key={workout.name}
           style={[s.card, { borderLeftColor: workout.color }]}
           onPress={() => router.push({ pathname: '/sessions', params: { workout: workout.name } })}
+            onLongPress={() => handleDelete(workout)}
         >
           <Text style={[s.cardTitle, { color: workout.color }]}>{workout.name}</Text>
           {/* <Text style={s.cardHint}>Tippen → Sessions · Lang drücken → Import</Text> */}
