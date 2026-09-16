@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 /**
@@ -32,6 +33,14 @@ export default function TabLayout() {
         name="explore"
         options={{ title: 'Fortschritt' }}
       /> */}
+
+      <Tabs.Screen
+  name="calendar"
+  options={{
+    title: 'Calendar',
+    tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
+  }}
+/>
     </Tabs>
   );
 }

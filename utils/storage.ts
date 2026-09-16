@@ -129,3 +129,21 @@ export async function addWorkoutType(type: WorkoutType): Promise<WorkoutType[]> 
   await AsyncStorage.setItem(TYPES_KEY, JSON.stringify(updated));
   return updated;
 }
+
+
+const NOTES_KEY = 'calendar_notes_v1';
+
+export async function loadDayNotes(): Promise<Record<string, string>> {
+  const raw = await AsyncStorage.getItem(NOTES_KEY);
+  return raw ? JSON.parse(raw) : {};
+}
+
+export async function saveDayNote(date: string, note: string): Promise<void> {
+  const notes = await loadDayNotes();
+  if (note.trim().length === 0) {
+    delete notes[date];
+  } else {
+    notes[date] = note;
+  }
+  await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+}

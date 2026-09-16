@@ -17,3 +17,13 @@ export type Lap = {
     fitFileHash?: string;
     fitFileUri?: string;
   };
+
+export interface DayNote {
+  date: string;      // 'YYYY-MM-DD'
+  note: string;
+}
+
+export interface WorkoutType {
+  name: string;
+  color: string;
+}
