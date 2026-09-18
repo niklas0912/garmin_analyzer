@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File } from 'expo-file-system';
+import { parseFitFile } from './fitParser';
 import type { Session } from './types';
 
 // Schlüssel, unter dem ALLE Workouts als ein einziges JSON-Array
@@ -153,4 +154,19 @@ export async function saveDayNote(date: string, note: string): Promise<void> {
     notes[date] = note;
   }
   await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+}
+
+
+
+/**
+ * Parst eine FIT-Datei neu und ersetzt das gespeicherte Workout.
+ * Reine Datenschicht — kein UI-State, kann von jedem Screen genutzt werden.
+ */
+export async function reparseAndUpdateWorkout(
+  workoutUri: string,
+  workoutName: string
+): Promise<Session> {
+  const reparsedSession: Session = await parseFitFile(workoutUri, workoutName);
+  await updateWorkout(reparsedSession);
+  return reparsedSession;
 }

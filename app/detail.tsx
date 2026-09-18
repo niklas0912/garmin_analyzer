@@ -4,8 +4,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { applyThresholdToLaps, formatThresholdInput, meanOf } from "../utils/details_utils";
-import { formatPace, parseFitFile } from '../utils/fitParser';
-import { loadAllWorkouts, updateWorkout } from '../utils/storage';
+import { formatPace } from '../utils/fitParser';
+import { loadAllWorkouts, reparseAndUpdateWorkout, updateWorkout } from '../utils/storage';
 /**
  * DetailScreen
  *
@@ -88,13 +88,10 @@ export default function DetailScreen() {
     updateWorkout(updatedSession);
   }
 
-async function reparse_workout(workoutUri:string, workoutName:string):Promise<void> {
-
-  const reparsedSession:Session = await parseFitFile(workoutUri,workoutName)
-  console.log(reparsedSession.laps.length)
-  setSession(reparsedSession);       // optimistisches Update der UI
-  updateWorkout(reparsedSession);    // Persistierung im Speicher
-} 
+async function reparse_workout(workoutUri: string, workoutName: string): Promise<void> {
+  const reparsedSession = await reparseAndUpdateWorkout(workoutUri, workoutName);
+  setSession(reparsedSession); // optimistisches Update der UI
+}
 
   // Alle als "schnell" markierten Runden, plus Flag ob überhaupt welche existieren
   const fastLaps = session.laps.filter((l: Lap) => l.isFast);
