@@ -1,26 +1,69 @@
-
+import { loadAllWorkouts, reparseAndUpdateWorkout } from '@/utils/storage';
+import type { Session } from '@/utils/types';
 import { router } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
+  const [isReparsing, setIsReparsing] = useState(false);
 
+  async function reparseAllWorkouts(): Promise<void> {
+    const existing: Session[] = await loadAllWorkouts();
 
-    return(
-        <View style={s.container}>
-            <View style={s.content}>
-              <TouchableOpacity
-                      style={[s.settingsCard]}
-                      onPress={() => router.push({ pathname: '/backup_screen',  })}
-                    >
-                      <Text style={s.settingButtonText}>Import/Export backup</Text>
-                      {/* <Text style={s.cardHint}>Tippen → Sessions · Lang drücken → Import</Text> */}
-                    </TouchableOpacity>
-                    </View>
-        </View>
+    for (const workout of existing) {
+      try {
+        await reparseAndUpdateWorkout(workout.id,workout.fitFileUri, workout.name);
+      } catch (err) {
+        console.log(`Reparse fehlgeschlagen für ${workout.name} (${workout.id}):`, err);
+      }
+    }
+  }
 
+  function confirmReparseAll(): void {
+    Alert.alert(
+      'Alle Sessions neu parsen?',
+      'Alle gespeicherten Workouts werden erneut aus den FIT-Dateien geparst. Manuelle Änderungen (z. B. isFast) gehen dabei verloren.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Neu parsen',
+          style: 'destructive',
+          onPress: async () => {
+            setIsReparsing(true);
+            try {
+              await reparseAllWorkouts();
+            } finally {
+              setIsReparsing(false);
+            }
+          },
+        },
+      ]
+    );
+  }
 
-    )
+  return (
+    <View style={s.container}>
+      <View style={s.content}>
+        <TouchableOpacity
+          style={[s.settingsCard]}
+          onPress={() => router.push({ pathname: '/backup_screen' })}
+        >
+          <Text style={s.settingButtonText}>Import/Export backup</Text>
+          {/* <Text style={s.cardHint}>Tippen → Sessions · Lang drücken → Import</Text> */}
+        </TouchableOpacity>
 
+        <TouchableOpacity
+          style={[s.settingsCard]}
+          onPress={confirmReparseAll}
+          disabled={isReparsing}
+        >
+          <Text style={s.settingButtonText}>
+            {isReparsing ? 'Wird neu geparst…' : 'Alle Sessions neu parsen'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 }
 
 const s = StyleSheet.create({

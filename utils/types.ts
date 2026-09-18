@@ -15,7 +15,7 @@ export type Lap = {
     laps: Lap[];
     temperature: number | null;
     fitFileHash?: string;
-    fitFileUri?: string;
+    fitFileUri: string;
   };
 
 export interface DayNote {

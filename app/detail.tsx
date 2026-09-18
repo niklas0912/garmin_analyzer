@@ -88,8 +88,8 @@ export default function DetailScreen() {
     updateWorkout(updatedSession);
   }
 
-async function reparse_workout(workoutUri: string, workoutName: string): Promise<void> {
-  const reparsedSession = await reparseAndUpdateWorkout(workoutUri, workoutName);
+async function reparse_workout(workoutId:string, workoutUri: string, workoutName: string): Promise<void> {
+  const reparsedSession = await reparseAndUpdateWorkout(workoutId,workoutUri, workoutName);
   setSession(reparsedSession); // optimistisches Update der UI
 }
 
@@ -192,7 +192,7 @@ async function reparse_workout(workoutUri: string, workoutName: string): Promise
   {session.fitFileUri && (
   <TouchableOpacity
     style={s.filterToggle}
-    onPress={() =>reparse_workout(session.fitFileUri!,session.name)}
+    onPress={() =>reparse_workout(session.id,session.fitFileUri!,session.name)}
   >
     <Text style={s.filterToggleText}>
 Reparse    </Text>

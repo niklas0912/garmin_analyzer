@@ -163,10 +163,13 @@ export async function saveDayNote(date: string, note: string): Promise<void> {
  * Reine Datenschicht — kein UI-State, kann von jedem Screen genutzt werden.
  */
 export async function reparseAndUpdateWorkout(
+    workoutId: string,
   workoutUri: string,
   workoutName: string
 ): Promise<Session> {
   const reparsedSession: Session = await parseFitFile(workoutUri, workoutName);
+  reparsedSession.id = workoutId; // ID des Original-Workouts erzwingen
+
   await updateWorkout(reparsedSession);
   return reparsedSession;
 }
