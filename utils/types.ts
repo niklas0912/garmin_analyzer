@@ -26,4 +26,5 @@ export interface DayNote {
 export interface WorkoutType {
   name: string;
   color: string;
+  sports: string;
 }

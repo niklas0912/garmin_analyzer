@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File } from 'expo-file-system';
 import { parseFitFile } from './fitParser';
-import type { Session } from './types';
+import type { Session, WorkoutType } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Speicher-Layout (v2): Index (klein, oft gelesen) + 1 Key pro Session
@@ -202,17 +202,14 @@ export async function reparseAndUpdateWorkout(workout: Session): Promise<Session
 // eigene, kleine Keys — keine Migration nötig.
 // ─────────────────────────────────────────────────────────────────────────
 
-export interface WorkoutType {
-  name: string;
-  color: string;
-}
+
 
 const TYPES_KEY = 'workout_types_v1';
 
 const DEFAULT_TYPES: WorkoutType[] = [
-  { name: 'Intervalle 400m', color: '#C8F135' },
-  { name: 'Intervalle 6min', color: '#4DB8FF' },
-  { name: 'Intervalle all Out', color: '#FF4D4D' },
+  { name: 'Intervalle 400m', color: '#C8F135', sports: "run" },
+  { name: 'Intervalle 6min', color: '#4DB8FF' , sports: "run"},
+  { name: 'Intervalle all Out', color: '#FF4D4D',  sports: "run"},
 ];
 
 export async function loadWorkoutTypes(): Promise<WorkoutType[]> {
@@ -253,4 +250,22 @@ export async function saveDayNote(date: string, note: string): Promise<void> {
     notes[date] = note;
   }
   await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+}
+
+export async function updateWorkoutType(
+  oldType: WorkoutType,
+  newType: WorkoutType
+): Promise<WorkoutType[]> {
+  const existing = await loadWorkoutTypes();
+  const updated = existing.map(t => (t.name === oldType.name ? newType : t));
+  await AsyncStorage.setItem(TYPES_KEY, JSON.stringify(updated));
+
+  if (oldType.name !== newType.name) {
+    const affectedSessions = await loadWorkoutsByName(oldType.name);
+    for (const session of affectedSessions) {
+      await updateWorkout({ ...session, name: newType.name });
+    }
+  }
+
+  return updated;
 }

@@ -1,11 +1,11 @@
-import { Lap, Session } from '@/utils/types';
+import { Lap, Session, WorkoutType } from '@/utils/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { applyThresholdToLaps, formatThresholdInput, meanOf } from "../utils/details_utils";
 import { formatPace } from '../utils/fitParser';
-import { loadAllWorkouts, reparseAndUpdateWorkout, updateWorkout } from '../utils/storage';
+import { loadAllWorkouts, loadWorkoutTypes, reparseAndUpdateWorkout, updateWorkout } from '../utils/storage';
 /**
  * DetailScreen
  *
@@ -27,7 +27,45 @@ export default function DetailScreen() {
   // Eingabe für die manuelle Pace-Schwelle (Format m:ss), z.B. "4:30"
   const [thresholdInput, setThresholdInput] = useState('4:15');
   const [showOnlyFast, setShowOnlyFast] = useState(false);
+const [typePickerVisible, setTypePickerVisible] = useState(false);
+const [availableTypes, setAvailableTypes] = useState<WorkoutType[]>([]);
 
+async function openTypePicker(): Promise<void> {
+  const types:WorkoutType[] = await loadWorkoutTypes();
+  setAvailableTypes(types);
+  setTypePickerVisible(true);
+}
+
+/**
+ * Ändert den Workout-Typ (= name) der aktuellen Session.
+ * Da `name` sowohl der Typ als auch der Gruppierungsschlüssel für
+ * loadWorkoutsByName ist, reicht ein simples updateWorkout mit neuem name —
+ * die Session "wandert" dadurch automatisch in die Sessions-Liste des
+ * neuen Typs.
+ */
+async function changeWorkoutType(session: Session, newType: WorkoutType): Promise<void> {
+  if (newType.name === session.name) {
+    setTypePickerVisible(false);
+    return;
+  }
+
+  Alert.alert(
+    'Workout-Typ ändern?',
+    `Diese Session wird von "${session.name}" zu "${newType.name}" verschoben.`,
+    [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Ändern',
+        onPress: async () => {
+          const updated: Session = { ...session, name: newType.name };
+          await updateWorkout(updated);
+          setSession(updated); // optimistisches Update der UI
+          setTypePickerVisible(false);
+        },
+      },
+    ]
+  );
+}
   // Lädt beim Mounten alle Workouts und sucht die passende Session anhand
   // der sessionId heraus. Die console.log-Aufrufe dienen aktuell dem
   // Debugging beim Auffinden der Session (können später entfernt werden).
@@ -69,6 +107,12 @@ export default function DetailScreen() {
     setSession(updatedSession);       // optimistisches Update der UI
     updateWorkout(updatedSession);    // Persistierung im Speicher
   }
+
+  //   function reType(workout:Session) {
+
+  //   setSession(updatedSession);       // optimistisches Update der UI
+  //   updateWorkout(updatedSession);    // Persistierung im Speicher
+  // }
 
   /**
    * Markiert alle Runden als "schnell", deren GAP-Pace unter (bzw. gleich)
@@ -113,6 +157,7 @@ async function reparse_workout(wo:Session): Promise<void> {
   const visibleLaps: Lap[] = showOnlyFast ? fastLaps : session.laps;
   return (
     <ScrollView contentContainerStyle={s.list}>
+    <View >
       {/* Kopfbereich: Datum der Session */}
       {/* <Text style={s.title}>
         {date.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
@@ -177,9 +222,10 @@ async function reparse_workout(wo:Session): Promise<void> {
         <TouchableOpacity style={s.thresholdButton} onPress={applyThreshold}>
           <Text style={s.thresholdButtonText}>Select threshhold</Text>
         </TouchableOpacity>
+        
       </View>
      
-     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+           <View style={{paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
 
   <TouchableOpacity
     style={s.filterToggle}
@@ -198,6 +244,12 @@ async function reparse_workout(wo:Session): Promise<void> {
 Reparse    </Text>
   </TouchableOpacity>
   )}
+<TouchableOpacity style={s.filterToggle} onPress={openTypePicker}>
+  <Text style={s.filterToggleText}>Workout-Typ ändern</Text>
+</TouchableOpacity>
+
+
+
 </View>
       {/* Tabellenkopf für die Lap-Liste */}
       <View style={s.tableHeader}>
@@ -228,7 +280,36 @@ Reparse    </Text>
           <Text style={[s.td, { color: '#4DB8FF' }]}>{formatPace(item.pace)}</Text>
         </TouchableOpacity>
       ))}
+
+
+<Modal
+  visible={typePickerVisible}
+  animationType="slide"
+  transparent
+  onRequestClose={() => setTypePickerVisible(false)}
+>
+  <View style={s.pickerOverlay}>
+    <View style={s.pickerContainer}>
+      <Text style={s.modalTitle}>Neuer Workout-Typ</Text>
+      {availableTypes.map(type => (
+        <TouchableOpacity
+          key={type.name}
+          style={s.typeOption}
+          onPress={() => changeWorkoutType(session, type)}
+        >
+          <View style={[s.colorDot, { backgroundColor: type.color }]} />
+          <Text style={s.typeName}>{type.name}</Text>
+        </TouchableOpacity>
+      ))}
+      <TouchableOpacity style={s.closeButton} onPress={() => setTypePickerVisible(false)}>
+        <Text style={s.settingButtonText}>Abbrechen</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
+</View>
     </ScrollView>
+
   );
 }
 
@@ -283,5 +364,37 @@ const s = StyleSheet.create({
     textAlign: "right",
     color: '#C8F135', // euer Akzent
     fontSize: 13,
+  },
+  pickerOverlay: {
+  flex: 1,
+  backgroundColor: 'rgba(0,0,0,0.6)',
+  justifyContent: 'flex-end',
+},
+pickerContainer: {
+  backgroundColor: '#0D0D0D',
+  borderTopLeftRadius: 16,
+  borderTopRightRadius: 16,
+  padding: 20,
+},
+typeOption: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#1A1A1A',
+  borderRadius: 12,
+  padding: 16,
+  marginBottom: 8,
+},
+   settingButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 20 },
+    settingsCard: { backgroundColor: '#222222', borderWidth: 0, borderColor: '#FFFFFF',borderRadius: 12, padding: 12 },
+  modalContainer: { flex: 1, backgroundColor: '#0D0D0D', padding: 16 },
+  modalTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '600', marginBottom: 16 },
+    colorDot: { width: 20, height: 20, borderRadius: 10, marginRight: 12 },
+  typeName: { color: '#FFFFFF', fontSize: 16 },
+  closeButton: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+    alignItems: 'center',
   },
 });

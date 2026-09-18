@@ -1,8 +1,9 @@
 // da filename index.tsx: startseite
+import { WorkoutType } from '@/utils/types';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { addWorkoutType, deleteWorkoutType, loadWorkoutTypes } from '../../utils/storage';
 
 /*
@@ -18,12 +19,13 @@ View	Container/Layout
  * Jeder Typ hat einen Namen (dient gleichzeitig als Identifikator beim
  * Filtern der Sessions) und eine Akzentfarbe für die Kartendarstellung.
  */
-const WORKOUT_TYPES = [
-  { name: 'Intervalle 400m', color: '#C8F135' },
-  { name: 'Intervalle 6min', color: '#4DB8FF' },
-  { name: 'Intervalle all Out', color: '#FF4D4D' },
+const WORKOUT_TYPES:WorkoutType[] = [
+  { name: 'Intervalle 400m', color: '#C8F135', sports:"run" },
+  { name: 'Intervalle 6min', color: '#4DB8FF', sports:"run" },
+  { name: 'Intervalle all Out', color: '#FF4D4D',  sports:"run" },
 ];
 
+const SPORTS_PRESET = ["run", "walk", "bike", "padel"]
 /**
  * WorkoutsScreen
  *
@@ -39,7 +41,6 @@ const WORKOUT_TYPES = [
   
 
 
-type WorkoutType = { name: string; color: string };
 
 // Feste Farbauswahl für neue Typen (statt freier Farbwahl, einfacher für den Nutzer)
 const COLOR_CHOICES = ['#C8F135', '#4DB8FF', '#FF4D4D', '#A78BFA', '#F59E0B'];
@@ -47,17 +48,21 @@ const COLOR_CHOICES = ['#C8F135', '#4DB8FF', '#FF4D4D', '#A78BFA', '#F59E0B'];
 export default function WorkoutsScreen() {
   const [types, setTypes] = useState<WorkoutType[]>([]);
   const [newName, setNewName] = useState('');
+  const [newSports, setNewSports] = useState('');
 
-  useEffect(() => {
+
+    useFocusEffect(useCallback(() => {
     loadWorkoutTypes().then(setTypes);
-  }, []);
+  }, []));
 
   async function handleAdd() {
     if (!newName.trim()) return;
     const color = COLOR_CHOICES[types.length % COLOR_CHOICES.length];
-    const updated = await addWorkoutType({ name: newName.trim(), color });
+    const updated = await addWorkoutType({ name: newName.trim(), color ,sports: newSports.trim() });
     setTypes(updated);
     setNewName('');
+        setNewSports('');
+
   }
 
 
@@ -79,6 +84,7 @@ function handleDelete(wt: WorkoutType) {
   );
 }
   return (
+    <ScrollView>
     <View style={s.container}>
           
          <View style={{ flexDirection: 'row', gap: 15 }}>
@@ -119,11 +125,19 @@ function handleDelete(wt: WorkoutType) {
           value={newName}
           onChangeText={setNewName}
         />
+                <TextInput
+          style={s.input}
+          placeholder="sports"
+          placeholderTextColor="#555555"
+          value={newSports}
+          onChangeText={setNewSports}
+        />
         <TouchableOpacity style={s.addButton} onPress={handleAdd}>
           <Text style={s.addButtonText}>+</Text>
         </TouchableOpacity>
       </View>
     </View>
+    </ScrollView>
   );
 }
 

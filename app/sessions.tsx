@@ -46,65 +46,103 @@ export default function SessionsScreen() {
   // ── FIT-Datei importieren ─────────────────────────────────────────────────
   // async/await: Wir warten auf Nutzeraktionen (Datei auswählen) und
   // auf asynchrone Operationen (Datei lesen, speichern).
-  async function handleImport() {
-    
-      const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
-        copyToCacheDirectory: true,
-      });
-  
-      if (result.canceled) return;
-      const pickedFile = result.assets[0];
-  
+async function handleImport() {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: '*/*',
+    copyToCacheDirectory: true,
+    multiple: true,
+  });
+
+  if (result.canceled) return;
+
+  const pickedFiles = result.assets;
+  const allWorkouts = await loadAllWorkouts();
+
+  const newFiles: { file: File; base64: string; fileHash: string; name: string }[] = [];
+  const duplicateFiles: { file: File; base64: string; fileHash: string; name: string }[] = [];
+  const hashErrors: string[] = [];
+
+  for (const pickedFile of pickedFiles) {
+    try {
       const file = new File(pickedFile.uri);
-      const base64 = await file.base64();   
-      
+      const base64 = await file.base64();
+
       const fileHash = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
         base64
       );
-  
-      const allWorkouts = await loadAllWorkouts();
+
       const alreadyImported = allWorkouts.some((w: any) => w.fitFileHash === fileHash);
-  
+      const entry = { file, base64, fileHash, name: pickedFile.name };
+
       if (alreadyImported) {
-        Alert.alert(
-          'Already imported',
-          'This FIT file has already been imported. Import it again anyway?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Import anyway', onPress: () => proceedImport(pickedFile, base64, fileHash) },
-          ]
-        );
-        return;
+        duplicateFiles.push(entry);
+      } else {
+        newFiles.push(entry);
       }
-  
+    } catch (err) {
+      console.log(`Hash-Berechnung fehlgeschlagen für ${pickedFile.name}:`, err);
+      hashErrors.push(pickedFile.name);
+    }
+  }
+
+  // Neue Dateien importieren — sequenziell, jede Datei einzeln abgesichert,
+  // damit ein Fehler bei einer Datei nicht den ganzen Batch stoppt.
+  const importErrors: string[] = [];
+  for (const { file, base64, fileHash, name } of newFiles) {
+    try {
       await proceedImport(file, base64, fileHash);
+    } catch (err) {
+      console.log(`Import fehlgeschlagen für ${name}:`, err);
+      importErrors.push(name);
+    }
+  }
+
+  const allErrors = [...hashErrors, ...importErrors];
+  if (allErrors.length > 0) {
+    Alert.alert(
+      'Einige Dateien konnten nicht importiert werden',
+      allErrors.join('\n')
+    );
+  }
+
+  // Für bereits importierte Dateien einmalig gesammelt nachfragen
+  if (duplicateFiles.length > 0) {
+    Alert.alert(
+      'Bereits importiert',
+      `${duplicateFiles.length} der ausgewählten Dateien wurden bereits importiert. Trotzdem erneut importieren?`,
+      [
+        { text: 'Überspringen', style: 'cancel' },
+        {
+          text: 'Trotzdem importieren',
+          onPress: async () => {
+            const duplicateErrors: string[] = [];
+            for (const { file, base64, fileHash, name } of duplicateFiles) {
+              try {
+                await proceedImport(file, base64, fileHash);
+              } catch (err) {
+                console.log(`Import fehlgeschlagen für ${name}:`, err);
+                duplicateErrors.push(name);
+              }
+            }
+            if (duplicateErrors.length > 0) {
+              Alert.alert(
+                'Einige Dateien konnten nicht importiert werden',
+                duplicateErrors.join('\n')
+              );
+            }
+          },
+        },
+      ]
+    );
+  }
+}
  
   
 
 
 
 
-    //   // FIT-Datei parsen: Binärdaten → JavaScript-Objekt mit Laps, Datum, etc.
-    //   const data = await parseFitFile(file.uri, workout as string);
-
-    //   // Im lokalen Speicher (AsyncStorage) sichern
-    //   await saveWorkout(data);
-
-    //   // Liste neu laden damit die neue Session sofort erscheint
-    //   const updated = await loadWorkoutsByName(workout as string);
-    //   setSessions(updated as Session[]);
-
-    //   Alert.alert('Importiert!', `${data.laps.length} Runden gespeichert.`);
-    // } catch (e) {
-    //   if (e instanceof Error) {
-    //     Alert.alert('Fehler', e.message);
-    //   } else {
-    //     Alert.alert('Fehler', 'Ein unbekannter Fehler ist aufgetreten.');
-    // }
-    // }
-  }
 
   async function proceedImport(file: any, base64: string, fileHash: string) {
     const data = await parseFitFile(file.uri, workout as string);
