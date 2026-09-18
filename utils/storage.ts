@@ -174,7 +174,13 @@ export async function reparseAndUpdateWorkout(
 ): Promise<Session> {
   const reparsedSession: Session = await parseFitFile(workout.fitFileUri, workout.name);
   reparsedSession.id = workout.id; // ID des Original-Workouts erzwingen
-
+    const oldFastByIndex = new Map(
+    workout.laps.map(lap => [lap.index, lap.isFast])
+  );
+  reparsedSession.laps = reparsedSession.laps.map(lap => ({
+    ...lap,
+    isFast: oldFastByIndex.get(lap.index) ?? false,
+  }));
   await updateWorkout(reparsedSession);
   return reparsedSession;
 }
