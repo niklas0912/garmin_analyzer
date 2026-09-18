@@ -56,7 +56,7 @@ export async function exportBackup(): Promise<void> {
     fitFiles,
   };
 
-  const filename = `garmin-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const filename = `garmin-backup-${new Date().toISOString().slice(0, 19)}.json`;
   const backupFile = new File(Paths.cache, filename);
 
   if (backupFile.exists) {
@@ -132,7 +132,7 @@ export async function importBackup(): Promise<number> {
       }
     }
 
-    await saveWorkout({ ...session, fitFileUri });
+    await saveWorkout({ ...session,  date: new Date(session.date),fitFileUri });
     restoredCount += 1;
   }
 
