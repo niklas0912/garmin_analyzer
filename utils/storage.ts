@@ -156,19 +156,24 @@ export async function saveDayNote(date: string, note: string): Promise<void> {
   await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
 }
 
-
+/**
+ * Löscht alle gespeicherten Workouts unwiderruflich.
+ * Reine Datenschicht — kein UI-Bezug.
+ */
+export async function deleteAllWorkouts(): Promise<void> {
+  await AsyncStorage.setItem(KEY, JSON.stringify([]));
+}
 
 /**
  * Parst eine FIT-Datei neu und ersetzt das gespeicherte Workout.
  * Reine Datenschicht — kein UI-State, kann von jedem Screen genutzt werden.
  */
 export async function reparseAndUpdateWorkout(
-    workoutId: string,
-  workoutUri: string,
-  workoutName: string
+    workout: Session,
+
 ): Promise<Session> {
-  const reparsedSession: Session = await parseFitFile(workoutUri, workoutName);
-  reparsedSession.id = workoutId; // ID des Original-Workouts erzwingen
+  const reparsedSession: Session = await parseFitFile(workout.fitFileUri, workout.name);
+  reparsedSession.id = workout.id; // ID des Original-Workouts erzwingen
 
   await updateWorkout(reparsedSession);
   return reparsedSession;

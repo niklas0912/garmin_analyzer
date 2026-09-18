@@ -1,4 +1,4 @@
-import { loadAllWorkouts, reparseAndUpdateWorkout } from '@/utils/storage';
+import { deleteAllWorkouts, loadAllWorkouts, reparseAndUpdateWorkout } from '@/utils/storage';
 import type { Session } from '@/utils/types';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -6,13 +6,14 @@ import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
   const [isReparsing, setIsReparsing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   async function reparseAllWorkouts(): Promise<void> {
     const existing: Session[] = await loadAllWorkouts();
 
     for (const workout of existing) {
       try {
-        await reparseAndUpdateWorkout(workout.id,workout.fitFileUri, workout.name);
+        await reparseAndUpdateWorkout(workout);
       } catch (err) {
         console.log(`Reparse fehlgeschlagen für ${workout.name} (${workout.id}):`, err);
       }
@@ -41,6 +42,27 @@ export default function SettingsScreen() {
     );
   }
 
+    function confirmDeleteAll(): void {
+    Alert.alert(
+      'Alle Sessions löschen?',
+      'Sämtliche importierten Workouts werden unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Alle löschen',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              await deleteAllWorkouts();
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  }
   return (
     <View style={s.container}>
       <View style={s.content}>
@@ -59,6 +81,15 @@ export default function SettingsScreen() {
         >
           <Text style={s.settingButtonText}>
             {isReparsing ? 'Wird neu geparst…' : 'Alle Sessions neu parsen'}
+          </Text>
+        </TouchableOpacity>
+          <TouchableOpacity
+          style={[s.settingsCard]}
+          onPress={confirmDeleteAll}
+          disabled={isReparsing || isDeleting}
+        >
+          <Text style={s.settingButtonText}>
+            {isDeleting ? 'Wird gelöscht…' : 'Alle Sessions löschen'}
           </Text>
         </TouchableOpacity>
       </View>
