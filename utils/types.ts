@@ -28,3 +28,15 @@ export interface WorkoutType {
   color: string;
   sports: string;
 }
+
+export type RangePreset = '3m' | '6m' | '1y' | 'custom';
+
+export interface DateRange {
+  from: Date;
+  to: Date;
+}
+
+export interface WeekVolume {
+  weekStart: Date; // Montag der jeweiligen Woche
+  km: number;
+}
