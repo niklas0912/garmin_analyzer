@@ -15,7 +15,7 @@ import { DateRange, RangePreset } from '../../utils/types';
 import { computeWeeklyVolume, presetToRange } from '../../utils/weeklyVolume';
 
 const ACCENT = '#C8F135';
- 
+
 function parseDate(input: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.trim());
   if (!match) return null;
@@ -24,14 +24,35 @@ function parseDate(input: string): Date | null {
   return isNaN(date.getTime()) ? null : date;
 }
 
+function formatWeekRange(weekStartMs: number): string {
+  const from = new Date(weekStartMs);
+  const to = new Date(weekStartMs);
+  to.setDate(to.getDate() + 6);
+  const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}.`;
+  return `${fmt(from)} – ${fmt(to)}`;
+}
 
 function withThinnedLabels(
-  data: { value: number; label: string }[]
-): { value: number; label: string }[] {
+  data: { value: number; label: string; weekStartMs: number }[]
+): { value: number; label: string; weekStartMs: number }[] {
   const n = data.length;
   if (n <= 8) return data;
   const step = Math.ceil(n / 8);
   return data.map((d, i) => ({ ...d, label: i % step === 0 ? d.label : '' }));
+}
+
+// Fügt jedem (ggf. schon ausgedünnten) Datenpunkt onPress + Hervorhebung
+// hinzu — beides sind von react-native-gifted-charts unterstützte Item-Felder.
+function withSelection(
+  data: { value: number; label: string; weekStartMs: number }[],
+  selectedIndex: number | null,
+  onSelect: (index: number) => void
+) {
+  return data.map((d, i) => ({
+    ...d,
+    frontColor: i === selectedIndex ? '#FFFFFF' : ACCENT,
+    onPress: () => onSelect(i),
+  }));
 }
 
 export default function StatsScreen() {
@@ -44,7 +65,10 @@ export default function StatsScreen() {
   const [customModalVisible, setCustomModalVisible] = useState(false);
   const [fromInput, setFromInput] = useState('');
   const [toInput, setToInput] = useState('');
-  const [weeklyData, setWeeklyData] = useState<{ value: number; label: string }[]>([]);
+  const [weeklyData, setWeeklyData] = useState<{ value: number; label: string; weekStartMs: number }[]>(
+    []
+  );
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   // useFocusEffect statt useEffect für die Equipment-Zahl, damit sie nach
   // Rückkehr aus dem Equipment-Manager aktuell ist (siehe learnings.md)
@@ -65,8 +89,10 @@ export default function StatsScreen() {
         weeks.map((w) => ({
           value: Math.round(w.km * 10) / 10,
           label: `${w.weekStart.getDate()}.${w.weekStart.getMonth() + 1}.`,
+          weekStartMs: w.weekStart.getTime(),
         }))
       );
+      setSelectedIndex(null);
     }
     run();
     return () => {
@@ -82,7 +108,8 @@ export default function StatsScreen() {
   const unit = usableWidth / barCount; // Platz pro Balken inkl. Lücke
   const barWidth = Math.max(Math.min(unit * 0.6, 22), 3);
   const barSpacing = Math.max(unit - barWidth, 2);
-  const chartData = withThinnedLabels(weeklyData);
+  const chartData = withSelection(withThinnedLabels(weeklyData), selectedIndex, setSelectedIndex);
+  const selectedWeek = selectedIndex !== null ? weeklyData[selectedIndex] : null;
   function applyCustomRange() {
     const from = parseDate(fromInput);
     const to = parseDate(toInput);
@@ -150,24 +177,35 @@ export default function StatsScreen() {
           {weeklyData.length === 0 ? (
             <Text style={s.emptyText}>No sessions in this range.</Text>
           ) : (
-            <BarChart
-              data={chartData}
-              width={chartWidth}
-              disableScroll
-              initialSpacing={initialSpacing}
-              endSpacing={endSpacing}
-              barWidth={barWidth}
-              spacing={barSpacing}
-              roundedTop
-              frontColor={ACCENT}
-              yAxisTextStyle={{ color: '#888' }}
-              xAxisLabelTextStyle={{ color: '#888', fontSize: 10, }}
-              labelWidth={15}
-                            xAxisLabelsVerticalShift={2}
-              noOfSections={4}
-              rulesColor="#2A2A2A"
-              backgroundColor="transparent"
-            />
+            <>
+              <BarChart
+                data={chartData}
+                width={chartWidth}
+                disableScroll
+                initialSpacing={initialSpacing}
+                endSpacing={endSpacing}
+                barWidth={barWidth}
+                spacing={barSpacing}
+                roundedTop
+                frontColor={ACCENT}
+                yAxisTextStyle={{ color: '#888' }}
+                xAxisLabelTextStyle={{ color: '#888', fontSize: 10, }}
+                labelWidth={15}
+                xAxisLabelsVerticalShift={2}
+                noOfSections={4}
+                rulesColor="#2A2A2A"
+                backgroundColor="transparent"
+              />
+
+              {selectedWeek && (
+                <View style={s.weekDetail}>
+                  <Text style={s.weekDetailText}>
+                    Week of {formatWeekRange(selectedWeek.weekStartMs)}
+                  </Text>
+                  <Text style={s.weekDetailValue}>{selectedWeek.value} km</Text>
+                </View>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
@@ -248,6 +286,15 @@ const s = StyleSheet.create({
   toggleChipText: { color: '#CCCCCC', fontSize: 13, fontWeight: '600' },
   toggleChipTextActive: { color: '#0D0D0D' },
   emptyText: { color: '#666666', fontStyle: 'italic', paddingVertical: 20, textAlign: 'center' },
+  weekDetail: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#333333',
+    alignItems: 'center',
+  },
+  weekDetailText: { color: '#888888', fontSize: 13, marginBottom: 2 },
+  weekDetailValue: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContainer: {
     backgroundColor: '#0D0D0D',
