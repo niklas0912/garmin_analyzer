@@ -1,9 +1,9 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { loadEquipmentBySport } from '@/utils/equipment';
 import { Ionicons } from '@expo/vector-icons';
-import { Equipment, Sport, loadEquipmentBySport } from '../utils/equipment';
-
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Equipment, Sport } from '../utils/types';
 const ACCENT = '#C8F135';
 
 interface Props {

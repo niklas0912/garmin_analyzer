@@ -19,6 +19,8 @@ import { formatPace, parseFitFile } from '../utils/fitParser';
 import { deleteWorkout, loadAllWorkouts, loadWorkoutsByName, saveWorkout } from '../utils/storage';
 import { Lap, Session } from '../utils/types';
 
+
+
 export default function SessionsScreen() {
   // useLocalSearchParams liest die URL-Parameter aus.
   // Wenn wir von der Startseite navigieren mit { workout: "Intervalle 400m" },

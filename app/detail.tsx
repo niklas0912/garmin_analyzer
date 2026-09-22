@@ -1,11 +1,17 @@
+import type { Equipment } from '@/utils/types';
 import { Lap, Session, WorkoutType } from '@/utils/types';
+import { useEquipmentLookup } from '@/utils/useEquipmentLookup';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { applyThresholdToLaps, formatThresholdInput, meanOf } from "../utils/details_utils";
 import { formatPace } from '../utils/fitParser';
+import { getWorkoutTypeNameFromId } from '../utils/Sessiontype';
 import { loadAllWorkouts, loadWorkoutTypes, reparseAndUpdateWorkout, updateWorkout } from '../utils/storage';
+import { Sport } from '../utils/types';
+import EquipmentAssignment from './EquipmentAssignment';
+import EquipmentPicker from './EquipmentPicker';
 /**
  * DetailScreen
  *
@@ -27,9 +33,32 @@ export default function DetailScreen() {
   // Eingabe für die manuelle Pace-Schwelle (Format m:ss), z.B. "4:30"
   const [thresholdInput, setThresholdInput] = useState('4:15');
   const [showOnlyFast, setShowOnlyFast] = useState(false);
-const [typePickerVisible, setTypePickerVisible] = useState(false);
-const [availableTypes, setAvailableTypes] = useState<WorkoutType[]>([]);
+  const [typePickerVisible, setTypePickerVisible] = useState(false);
+  const [availableTypes, setAvailableTypes] = useState<WorkoutType[]>([]);
+  const { nameById } = useEquipmentLookup();
+  const [assignMode, setAssignMode] = useState(false);
+  const [lapPickerIndex, setLapPickerIndex] = useState<number | null>(null);
 
+
+
+function handleSaveSession(updated: Session) {
+  setSession(updated);       // euer lokaler State
+  updateWorkout(updated);    // eure bestehende Storage-Funktion
+}
+
+function handleLapPress(index: number) {
+  if (assignMode) {
+    setLapPickerIndex(index);
+    return;
+  }
+  toggleLap(index);
+}
+function toSport(value: string | undefined): Sport | null {
+  return value === 'running' || value === 'bike' ? value : null;
+}
+const typeName = getWorkoutTypeNameFromId(sessionId as string);
+const workoutType = availableTypes.find((t) => t.name === typeName);
+const sport = toSport(workoutType?.sports);
 async function openTypePicker(): Promise<void> {
   const types:WorkoutType[] = await loadWorkoutTypes();
   setAvailableTypes(types);
@@ -69,14 +98,13 @@ async function changeWorkoutType(session: Session, newType: WorkoutType): Promis
   // Lädt beim Mounten alle Workouts und sucht die passende Session anhand
   // der sessionId heraus. Die console.log-Aufrufe dienen aktuell dem
   // Debugging beim Auffinden der Session (können später entfernt werden).
-  useEffect(() => {
-    loadAllWorkouts().then((all: any[]) => {
-      console.log('Alle IDs:', all.map(w => w.id));
-      const found = all.find((w: any) => w.id === sessionId);
-
-      if (found) setSession(found);
-    });
-  }, []);
+useEffect(() => {
+  loadAllWorkouts().then((all: any[]) => {
+    const found = all.find((w: any) => w.id === sessionId);
+    if (found) setSession(found);
+  });
+  loadWorkoutTypes().then(setAvailableTypes);
+}, []);
 
   // Solange die Session noch nicht geladen ist, wird nur ein leerer
   // dunkler Hintergrund gerendert (verhindert Flackern/weißen Screen)
@@ -153,6 +181,19 @@ async function reparse_workout(wo:Session): Promise<void> {
 
 
 
+function handleLapEquipmentSelect(equipment: Equipment | null) {
+  if (lapPickerIndex === null || !session) return;
+
+  const updated: Session = {
+    ...session,
+    laps: session.laps.map((l, i) =>
+      i === lapPickerIndex ? { ...l, equipmentId: equipment?.id } : l
+    ),
+  };
+
+  setLapPickerIndex(null);
+  handleSaveSession(updated);
+}
 
   const visibleLaps: Lap[] = showOnlyFast ? fastLaps : session.laps;
   return (
@@ -265,7 +306,7 @@ Reparse    </Text>
         <TouchableOpacity
           key={item.index}
           style={[s.row, index % 2 === 0 && s.rowEven, item.isFast && s.rowFast]}
-          onPress={() => toggleLap(item.index)}
+          onPress={() =>handleLapPress(item.index)}
         >
           {/* Bei markierten Runden wird statt der Nummer ein Blitz-Symbol angezeigt */}
           <Text style={[s.td, { flex: 0.5 }]}>{item.isFast ? '⚡' : item.index}</Text>
@@ -308,6 +349,26 @@ Reparse    </Text>
   </View>
 </Modal>
 </View>
+{sport && (
+<>
+<EquipmentAssignment
+  session={session}
+  sport={sport}
+  equipmentNameById={nameById}
+  onUpdateSession={handleSaveSession}
+  assignMode={assignMode}
+  onAssignModeChange={setAssignMode}
+/>
+
+<EquipmentPicker
+  visible={lapPickerIndex !== null}
+  sport={sport}
+  selectedId={lapPickerIndex !== null ? session.laps[lapPickerIndex].equipmentId : undefined}
+  onSelect={handleLapEquipmentSelect}
+  onClose={() => setLapPickerIndex(null)}
+/>
+</>
+)}
     </ScrollView>
 
   );

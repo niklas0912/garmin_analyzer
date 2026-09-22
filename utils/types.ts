@@ -6,6 +6,7 @@ export type Lap = {
     maxHr: number | null;
     pace: number | null;
     isFast: boolean;
+    equipmentId?: string;
   };
   
   export type Session = {
@@ -16,6 +17,8 @@ export type Lap = {
     temperature: number | null;
     fitFileHash?: string;
     fitFileUri: string;
+    equipmentId?: string;
+
   };
 
 export interface DayNote {
@@ -39,4 +42,14 @@ export interface DateRange {
 export interface WeekVolume {
   weekStart: Date; // Montag der jeweiligen Woche
   km: number;
+}
+
+export type Sport = 'running' | 'bike';
+
+export interface Equipment {
+  id: string;
+  name: string;
+  sport: Sport;
+  retired: boolean;
+  createdAt: string; // ISO date string
 }

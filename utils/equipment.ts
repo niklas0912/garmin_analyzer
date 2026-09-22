@@ -1,14 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { Equipment, Sport } from './types';
 
-export type Sport = 'running' | 'bike';
-
-export interface Equipment {
-  id: string;
-  name: string;
-  sport: Sport;
-  retired: boolean;
-  createdAt: string; // ISO date string
-}
 
 const EQUIPMENT_KEY = 'equipment_v1';
 
