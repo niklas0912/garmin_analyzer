@@ -1,16 +1,27 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Modal, TextInput, Alert } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import {
-  Equipment,
-  Sport,
+  deleteEquipment,
   loadEquipment,
+  makeEquipmentId,
   saveEquipment,
   updateEquipment,
-  deleteEquipment,
-  makeEquipmentId,
 } from '../utils/equipment';
+import { computeEquipmentKm } from '../utils/equipmentStats';
+import { loadAllWorkouts } from '../utils/storage';
+import type {
+  Equipment,
+  Session,
+  Sport
+} from "../utils/types";
+
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+
+
+// in renderItem:
 
 const ACCENT = '#C8F135';
 
@@ -26,12 +37,26 @@ export default function EquipmentManagerScreen() {
     loadEquipment().then(setItems);
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      refresh();
-    }, [refresh])
-  );
+  const [sessions, setSessions] = useState<Session[]>([]);
 
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     refresh();
+  //     loadAllWorkouts().then(setSessions);
+      
+  //   }, [refresh])
+  // );
+
+
+  useFocusEffect(
+  useCallback(() => {
+    refresh();
+    loadAllWorkouts().then((all) => {
+      console.log('Sessions geladen:', all.length);
+      setSessions(all);
+    });
+  }, [refresh])
+);
   function openNew() {
     setEditing(null);
     setNameInput('');
@@ -50,15 +75,15 @@ export default function EquipmentManagerScreen() {
     const trimmed = nameInput.trim();
     if (!trimmed) return;
 
-    const item: Equipment = editing
-      ? { ...editing, name: trimmed, sport: sportInput }
-      : {
-          id: makeEquipmentId(),
-          name: trimmed,
-          sport: sportInput,
-          retired: false,
-          createdAt: new Date().toISOString(),
-        };
+const item: Equipment = editing
+  ? { ...editing, name: trimmed, sport: sportInput }
+  : {
+      id: makeEquipmentId(),
+      name: trimmed,
+      sport: sportInput,
+      retired: false,
+      createdAt: new Date().toISOString(),
+    };
 
     if (editing) {
       await updateEquipment(item);
@@ -83,9 +108,10 @@ export default function EquipmentManagerScreen() {
       },
     ]);
   }
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={s.container}>
+    <View style={[s.container, {paddingBottom: insets.bottom + 16}]}>
       <View style={s.content}>
         <Text style={s.title}>Equipment</Text>
 
@@ -105,8 +131,13 @@ export default function EquipmentManagerScreen() {
                 color={ACCENT}
                 style={{ marginRight: 12 }}
               />
-              <Text style={s.typeName}>{item.name}</Text>
-            </TouchableOpacity>
+<View>
+<Text style={s.typeName}>{item.name}</Text>
+<View >
+<Text style={s.kmNote}>{computeEquipmentKm(item.id, sessions).toFixed(1)} km</Text> 
+</View>
+</View>
+           </TouchableOpacity>
           )}
         />
 
@@ -120,7 +151,10 @@ export default function EquipmentManagerScreen() {
       </View>
 
       <Modal visible={editorVisible} animationType="slide" transparent>
+
         <View style={s.modalOverlay}>
+                <View style={[s.sheet, { paddingBottom: insets.bottom + 16 }]}>
+
           <View style={s.modalContainer}>
             <Text style={s.modalTitle}>{editing ? 'Edit Equipment' : 'New Equipment'}</Text>
 
@@ -165,6 +199,8 @@ export default function EquipmentManagerScreen() {
             </View>
           </View>
         </View>
+              </View>
+
       </Modal>
     </View>
   );
@@ -183,6 +219,8 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   typeName: { color: '#FFFFFF', fontSize: 16 },
+    kmNote: { color:  '#666666', fontSize: 14 },
+
   emptyText: { color: '#666666', fontStyle: 'italic', textAlign: 'center', marginTop: 40 },
   button: {
     backgroundColor: '#222222',
@@ -222,6 +260,13 @@ const s = StyleSheet.create({
     backgroundColor: '#1A1A1A',
     borderWidth: 2,
     borderColor: 'transparent',
+  },
+   sheet: {
+    backgroundColor: '#1A1A1A',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    // paddingBottom kommt oben dynamisch dazu
   },
   sportOptionSelected: { backgroundColor: '#C8F135', borderColor: '#FFFFFF' },
   sportOptionText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
