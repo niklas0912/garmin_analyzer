@@ -1,8 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { Equipment, Sport } from '../utils/types';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import EquipmentPicker from './EquipmentPicker';
+import { Equipment, Sport } from '../utils/types';
 
 const ACCENT = '#C8F135';
 
@@ -17,29 +17,38 @@ interface Props<T extends SessionLike> {
   equipmentNameById: (id?: string) => string | null;
   onUpdateSession: (updated: T) => void; // Aufrufer speichert z.B. via updateWorkout(updated)
   assignMode: boolean;
-  onAssignModeChange: (active: boolean) => void;
+  onStartLapSelection: () => void; // "Per lap" im Alert gewählt
+  onCancelLapSelection: () => void; // Cancel-Button während der Auswahl
+  selectedLapCount: number; // Anzahl aktuell markierter Runden (aus detail.tsx)
+  onAssignToSelectedLaps: (equipment: Equipment | null) => void;
 }
 
 // Rendert die "Equipment"-Zeile oben in der Detailansicht.
 // Tap fragt: ganze Session oder pro Runde unterschiedlich?
 //   - "Whole session" öffnet direkt den Picker und setzt session.equipmentId
 //     (löscht dabei vorhandene Pro-Runde-Zuweisungen, um Mehrdeutigkeit zu vermeiden).
-//   - "Per lap" aktiviert assignMode; die eigentliche Zuweisung pro Runde
-//     passiert dann im Lap-onPress-Handler von detail.tsx (siehe Integrationshinweis).
+//   - "Per lap" aktiviert den Auswahlmodus: Tippen auf Runden markiert/entmarkiert
+//     sie nur (in detail.tsx), hier erscheint eine Leiste mit der Anzahl und
+//     einem "Assign equipment"-Button, der EINMAL den Picker öffnet und das
+//     Ergebnis auf alle markierten Runden anwendet (statt pro Runde einzeln).
 export default function EquipmentAssignment<T extends SessionLike>({
   session,
   sport,
   equipmentNameById,
   onUpdateSession,
   assignMode,
-  onAssignModeChange,
+  onStartLapSelection,
+  onCancelLapSelection,
+  selectedLapCount,
+  onAssignToSelectedLaps,
 }: Props<T>) {
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [batchPickerVisible, setBatchPickerVisible] = useState(false);
 
   const perLapCount = session.laps.filter((l) => l.equipmentId).length;
 
   function summaryText(): string {
-    if (assignMode) return 'Tap a lap to assign equipment';
+    if (assignMode) return 'Selecting laps…';
     if (session.equipmentId) {
       return equipmentNameById(session.equipmentId) ?? 'Whole session';
     }
@@ -50,17 +59,14 @@ export default function EquipmentAssignment<T extends SessionLike>({
   }
 
   function handlePress() {
-    if (assignMode) {
-      onAssignModeChange(false);
-      return;
-    }
+    if (assignMode) return; // während der Auswahl steuert die Leiste unten, nicht die Zeile selbst
     Alert.alert(
       'Assign Equipment',
       'Use the same equipment for the whole session, or assign different equipment per lap?',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Whole session', onPress: () => setPickerVisible(true) },
-        { text: 'Per lap', onPress: () => onAssignModeChange(true) },
+        { text: 'Per lap', onPress: onStartLapSelection },
       ]
     );
   }
@@ -75,9 +81,14 @@ export default function EquipmentAssignment<T extends SessionLike>({
     onUpdateSession(updated);
   }
 
+  function handleBatchEquipmentSelect(equipment: Equipment | null) {
+    setBatchPickerVisible(false);
+    onAssignToSelectedLaps(equipment);
+  }
+
   return (
     <>
-      <TouchableOpacity style={s.row} onPress={handlePress}>
+      <TouchableOpacity style={s.row} onPress={handlePress} disabled={assignMode}>
         <Ionicons
           name={sport === 'running' ? 'footsteps-outline' : 'bicycle-outline'}
           size={18}
@@ -91,9 +102,25 @@ export default function EquipmentAssignment<T extends SessionLike>({
       </TouchableOpacity>
 
       {assignMode && (
-        <TouchableOpacity style={s.doneButton} onPress={() => onAssignModeChange(false)}>
-          <Text style={s.doneButtonText}>Done assigning</Text>
-        </TouchableOpacity>
+        <View style={s.selectionBar}>
+          <Text style={s.selectionText}>
+            {selectedLapCount === 0
+              ? 'Tap laps to select them'
+              : `${selectedLapCount} lap${selectedLapCount === 1 ? '' : 's'} selected`}
+          </Text>
+          <View style={s.selectionActions}>
+            <TouchableOpacity style={s.cancelButton} onPress={onCancelLapSelection}>
+              <Text style={s.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.assignButton, selectedLapCount === 0 && s.assignButtonDisabled]}
+              disabled={selectedLapCount === 0}
+              onPress={() => setBatchPickerVisible(true)}
+            >
+              <Text style={s.assignButtonText}>Assign equipment</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       )}
 
       <EquipmentPicker
@@ -102,6 +129,13 @@ export default function EquipmentAssignment<T extends SessionLike>({
         selectedId={session.equipmentId}
         onSelect={handleSessionEquipmentSelect}
         onClose={() => setPickerVisible(false)}
+      />
+
+      <EquipmentPicker
+        visible={batchPickerVisible}
+        sport={sport}
+        onSelect={handleBatchEquipmentSelect}
+        onClose={() => setBatchPickerVisible(false)}
       />
     </>
   );
@@ -118,12 +152,30 @@ const s = StyleSheet.create({
   },
   label: { color: '#FFFFFF', fontSize: 16, marginRight: 8 },
   value: { color: '#888888', fontSize: 14, marginLeft: 'auto', flexShrink: 1, textAlign: 'right' },
-  doneButton: {
-    backgroundColor: ACCENT,
+  selectionBar: {
+    backgroundColor: '#1A1A1A',
     borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    gap: 10,
+  },
+  selectionText: { color: '#CCCCCC', fontSize: 13 },
+  selectionActions: { flexDirection: 'row', gap: 8 },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 10,
     padding: 12,
     alignItems: 'center',
-    marginBottom: 8,
   },
-  doneButtonText: { color: '#0D0D0D', fontWeight: '700', fontSize: 14 },
+  cancelButtonText: { color: '#CCCCCC', fontWeight: '600', fontSize: 14 },
+  assignButton: {
+    flex: 1,
+    backgroundColor: ACCENT,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+  },
+  assignButtonDisabled: { backgroundColor: '#3A3F1E' },
+  assignButtonText: { color: '#0D0D0D', fontWeight: '700', fontSize: 14 },
 });

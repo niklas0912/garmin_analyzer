@@ -11,7 +11,7 @@ import { getWorkoutTypeNameFromId } from '../utils/Sessiontype';
 import { loadAllWorkouts, loadWorkoutTypes, reparseAndUpdateWorkout, updateWorkout } from '../utils/storage';
 import { Sport } from '../utils/types';
 import EquipmentAssignment from './EquipmentAssignment';
-import EquipmentPicker from './EquipmentPicker';
+
 /**
  * DetailScreen
  *
@@ -36,75 +36,116 @@ export default function DetailScreen() {
   const [typePickerVisible, setTypePickerVisible] = useState(false);
   const [availableTypes, setAvailableTypes] = useState<WorkoutType[]>([]);
   const { nameById } = useEquipmentLookup();
+
+  // Equipment-Zuweisung pro Runde: assignMode = Auswahlmodus aktiv,
+  // selectedLapIndices = Set der markierten lap.index-Werte (1-basiert,
+  // wie vom FIT-Parser vergeben — NICHT der Array-Index in session.laps!).
   const [assignMode, setAssignMode] = useState(false);
-  const [lapPickerIndex, setLapPickerIndex] = useState<number | null>(null);
+  const [selectedLapIndices, setSelectedLapIndices] = useState<Set<number>>(new Set());
 
-
-
-function handleSaveSession(updated: Session) {
-  setSession(updated);       // euer lokaler State
-  updateWorkout(updated);    // eure bestehende Storage-Funktion
-}
-
-function handleLapPress(index: number) {
-  if (assignMode) {
-    setLapPickerIndex(index);
-    return;
-  }
-  toggleLap(index);
-}
-function toSport(value: string | undefined): Sport | null {
-  return value === 'running' || value === 'bike' ? value : null;
-}
-const typeName = getWorkoutTypeNameFromId(sessionId as string);
-const workoutType = availableTypes.find((t) => t.name === typeName);
-const sport = toSport(workoutType?.sports);
-async function openTypePicker(): Promise<void> {
-  const types:WorkoutType[] = await loadWorkoutTypes();
-  setAvailableTypes(types);
-  setTypePickerVisible(true);
-}
-
-/**
- * Ändert den Workout-Typ (= name) der aktuellen Session.
- * Da `name` sowohl der Typ als auch der Gruppierungsschlüssel für
- * loadWorkoutsByName ist, reicht ein simples updateWorkout mit neuem name —
- * die Session "wandert" dadurch automatisch in die Sessions-Liste des
- * neuen Typs.
- */
-async function changeWorkoutType(session: Session, newType: WorkoutType): Promise<void> {
-  if (newType.name === session.name) {
-    setTypePickerVisible(false);
-    return;
+  function handleSaveSession(updated: Session) {
+    setSession(updated); // euer lokaler State
+    updateWorkout(updated); // eure bestehende Storage-Funktion
   }
 
-  Alert.alert(
-    'Workout-Typ ändern?',
-    `Diese Session wird von "${session.name}" zu "${newType.name}" verschoben.`,
-    [
-      { text: 'Abbrechen', style: 'cancel' },
-      {
-        text: 'Ändern',
-        onPress: async () => {
-          const updated: Session = { ...session, name: newType.name };
-          await updateWorkout(updated);
-          setSession(updated); // optimistisches Update der UI
-          setTypePickerVisible(false);
+  function handleLapPress(index: number) {
+    if (assignMode) {
+      setSelectedLapIndices((prev) => {
+        const next = new Set(prev);
+        if (next.has(index)) {
+          next.delete(index);
+        } else {
+          next.add(index);
+        }
+        return next;
+      });
+      return;
+    }
+    toggleLap(index);
+  }
+
+  function startLapSelection() {
+    setSelectedLapIndices(new Set());
+    setAssignMode(true);
+  }
+
+  function cancelLapSelection() {
+    setAssignMode(false);
+    setSelectedLapIndices(new Set());
+  }
+
+  // Wendet das gewählte Equipment auf ALLE markierten Runden auf einmal an
+  // (Matching über lap.index, nicht über Array-Position — das war die
+  // Ursache des Crashs bei der letzten Runde in der alten Einzel-Picker-Variante).
+  function applyEquipmentToSelectedLaps(equipment: Equipment | null) {
+    if (!session) return;
+
+    const updated: Session = {
+      ...session,
+      laps: session.laps.map((l) =>
+        selectedLapIndices.has(l.index) ? { ...l, equipmentId: equipment?.id } : l
+      ),
+    };
+
+    cancelLapSelection();
+    handleSaveSession(updated);
+  }
+
+  function toSport(value: string | undefined): Sport | null {
+    return value === 'running' || value === 'bike' ? value : null;
+  }
+  const typeName = getWorkoutTypeNameFromId(sessionId as string);
+  const workoutType = availableTypes.find((t) => t.name === typeName);
+  const sport = toSport(workoutType?.sports);
+
+  async function openTypePicker(): Promise<void> {
+    const types: WorkoutType[] = await loadWorkoutTypes();
+    setAvailableTypes(types);
+    setTypePickerVisible(true);
+  }
+
+  /**
+   * Ändert den Workout-Typ (= name) der aktuellen Session.
+   * Da `name` sowohl der Typ als auch der Gruppierungsschlüssel für
+   * loadWorkoutsByName ist, reicht ein simples updateWorkout mit neuem name —
+   * die Session "wandert" dadurch automatisch in die Sessions-Liste des
+   * neuen Typs.
+   */
+  async function changeWorkoutType(session: Session, newType: WorkoutType): Promise<void> {
+    if (newType.name === session.name) {
+      setTypePickerVisible(false);
+      return;
+    }
+
+    Alert.alert(
+      'Workout-Typ ändern?',
+      `Diese Session wird von "${session.name}" zu "${newType.name}" verschoben.`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Ändern',
+          onPress: async () => {
+            const updated: Session = { ...session, name: newType.name };
+            await updateWorkout(updated);
+            setSession(updated); // optimistisches Update der UI
+            setTypePickerVisible(false);
+          },
         },
-      },
-    ]
-  );
-}
+      ]
+    );
+  }
+
   // Lädt beim Mounten alle Workouts und sucht die passende Session anhand
-  // der sessionId heraus. Die console.log-Aufrufe dienen aktuell dem
-  // Debugging beim Auffinden der Session (können später entfernt werden).
-useEffect(() => {
-  loadAllWorkouts().then((all: any[]) => {
-    const found = all.find((w: any) => w.id === sessionId);
-    if (found) setSession(found);
-  });
-  loadWorkoutTypes().then(setAvailableTypes);
-}, []);
+  // der sessionId heraus. Lädt außerdem gleich die Workout-Typen mit —
+  // vorher wurden die erst beim Öffnen des Type-Pickers geladen, wodurch
+  // `sport` (und damit die Equipment-Zeile) beim ersten Rendern immer leer war.
+  useEffect(() => {
+    loadAllWorkouts().then((all: any[]) => {
+      const found = all.find((w: any) => w.id === sessionId);
+      if (found) setSession(found);
+    });
+    loadWorkoutTypes().then(setAvailableTypes);
+  }, []);
 
   // Solange die Session noch nicht geladen ist, wird nur ein leerer
   // dunkler Hintergrund gerendert (verhindert Flackern/weißen Screen)
@@ -123,24 +164,14 @@ useEffect(() => {
   function toggleLap(index: number) {
     if (!session) return;
 
-    console.log('Toggle Lap:', index);
-    console.log('Laps indices:', session.laps.map((l: Lap) => l.index));
-
     const updatedLaps = session.laps.map((lap: Lap) =>
       lap.index === index ? { ...lap, isFast: !lap.isFast } : lap
     );
-    console.log('isFast nach update:', updatedLaps.map((l: Lap) => l.isFast));
 
-    const updatedSession:Session = { ...session, laps: updatedLaps };
-    setSession(updatedSession);       // optimistisches Update der UI
-    updateWorkout(updatedSession);    // Persistierung im Speicher
+    const updatedSession: Session = { ...session, laps: updatedLaps };
+    setSession(updatedSession); // optimistisches Update der UI
+    updateWorkout(updatedSession); // Persistierung im Speicher
   }
-
-  //   function reType(workout:Session) {
-
-  //   setSession(updatedSession);       // optimistisches Update der UI
-  //   updateWorkout(updatedSession);    // Persistierung im Speicher
-  // }
 
   /**
    * Markiert alle Runden als "schnell", deren GAP-Pace unter (bzw. gleich)
@@ -149,228 +180,177 @@ useEffect(() => {
   function applyThreshold() {
     if (!session) return;
     const updatedLaps = applyThresholdToLaps(session.laps, thresholdInput);
-  
+
     if (updatedLaps == null) {
       Alert.alert('Ungültige Eingabe', 'Bitte im Format m:ss eingeben, z.B. 4:30');
       return;
     }
-  
+
     const updatedSession = { ...session, laps: updatedLaps };
     setSession(updatedSession);
     updateWorkout(updatedSession);
   }
 
-async function reparse_workout(wo:Session): Promise<void> {
-  const reparsedSession = await reparseAndUpdateWorkout(wo);
-  setSession(reparsedSession); // optimistisches Update der UI
-}
+  async function reparse_workout(wo: Session): Promise<void> {
+    const reparsedSession = await reparseAndUpdateWorkout(wo);
+    setSession(reparsedSession); // optimistisches Update der UI
+  }
 
   // Alle als "schnell" markierten Runden, plus Flag ob überhaupt welche existieren
   const fastLaps = session.laps.filter((l: Lap) => l.isFast);
   const hasFastLaps = fastLaps.length > 0;
 
-  /**
-   * Berechnet den Durchschnitt eines bestimmten Feldes (z.B. 'avgHr' oder
-   * 'maxHr') über eine Liste von Laps. Filtert dabei unrealistische bzw.
-   * fehlende Werte heraus (<= 0 oder >= 220 bpm gelten als ungültig).
-   *
-   * @param laps - Liste der Laps, über die gemittelt werden soll
-   * @param key - Der Feldname im Lap-Objekt, der gemittelt wird
-   * @returns Gerundeter Durchschnittswert, oder null falls keine gültigen Werte vorhanden sind
-   */
-
-
-
-function handleLapEquipmentSelect(equipment: Equipment | null) {
-  if (lapPickerIndex === null || !session) return;
-
-  const updated: Session = {
-    ...session,
-    laps: session.laps.map((l, i) =>
-      i === lapPickerIndex ? { ...l, equipmentId: equipment?.id } : l
-    ),
-  };
-
-  setLapPickerIndex(null);
-  handleSaveSession(updated);
-}
-
   const visibleLaps: Lap[] = showOnlyFast ? fastLaps : session.laps;
   return (
     <ScrollView contentContainerStyle={s.list}>
-    <View >
-      {/* Kopfbereich: Datum der Session */}
-      {/* <Text style={s.title}>
-        {date.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
-    <Ionicons name="thermometer-outline" size={14} color="#C8F135" />
-  
-      {session.temperature != null ? `${session.temperature.toFixed(1)}°C` : "--"}
-    </Text> */}
-       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <Text style={s.title}>
-        {date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
-      </Text>
-    
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-        <Ionicons name="thermometer-outline" size={14} color="#C8F135" />
-        <Text style={s.temperature}>
-          {session.temperature != null ? `${session.temperature.toFixed(1)}°C` : "--"}
-        </Text>
-      </View>
-    </View>
-      <Text style={s.hint}>Tippe auf eine Runde um sie als schnell zu markieren</Text>
+      <View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={s.title}>
+            {date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </Text>
 
-      {/* Zusammenfassungs-Box für "schnelle" Runden, nur wenn welche markiert sind */}
-      {hasFastLaps && (
-        <View style={s.summary}>
-          <Text style={s.summaryTitle}>Fast laps metrics ({fastLaps.length})</Text>
-          <View style={s.summaryStats}>
-            <View style={s.stat}>
-              <Text style={s.statLabel}>Ø HR</Text>
-              <Text style={[s.statValue, { color: '#FF4D4D' }]}>{meanOf(fastLaps, 'avgHr') ?? '--'}</Text>
-            </View>
-            <View style={s.stat}>
-              <Text style={s.statLabel}>Max HR</Text>
-              <Text style={[s.statValue, { color: '#FF4D4D' }]}>{meanOf(fastLaps, 'maxHr') ?? '--'}</Text>
-            </View>
-            <View style={s.stat}>
-              <Text style={s.statLabel}>Ø Pace</Text>
-              <Text style={[s.statValue, { color: '#4DB8FF' }]}>
-                {/*
-                  Gewichteter Durchschnitt der Pace über alle schnellen Runden:
-                  Summe von (Wert / Anzahl) statt Summe/Anzahl, mathematisch
-                  äquivalent, aber in einem einzigen reduce-Durchlauf berechnet.
-                  Runden ohne gültige Pace (<= 0) werden vorher rausgefiltert.
-                */}
-                {formatPace(fastLaps.map((l: any) => l.pace).filter((v: any) => v > 0).reduce((a: number, b: number, _: any, arr: any[]) => a + b / arr.length, 0) || null)}
-              </Text>
-            </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="thermometer-outline" size={14} color="#C8F135" />
+            <Text style={s.temperature}>
+              {session.temperature != null ? `${session.temperature.toFixed(1)}°C` : '--'}
+            </Text>
           </View>
         </View>
+        <Text style={s.hint}>Tippe auf eine Runde um sie als schnell zu markieren</Text>
+
+        {/* Zusammenfassungs-Box für "schnelle" Runden, nur wenn welche markiert sind */}
+        {hasFastLaps && (
+          <View style={s.summary}>
+            <Text style={s.summaryTitle}>Fast laps metrics ({fastLaps.length})</Text>
+            <View style={s.summaryStats}>
+              <View style={s.stat}>
+                <Text style={s.statLabel}>Ø HR</Text>
+                <Text style={[s.statValue, { color: '#FF4D4D' }]}>{meanOf(fastLaps, 'avgHr') ?? '--'}</Text>
+              </View>
+              <View style={s.stat}>
+                <Text style={s.statLabel}>Max HR</Text>
+                <Text style={[s.statValue, { color: '#FF4D4D' }]}>{meanOf(fastLaps, 'maxHr') ?? '--'}</Text>
+              </View>
+              <View style={s.stat}>
+                <Text style={s.statLabel}>Ø Pace</Text>
+                <Text style={[s.statValue, { color: '#4DB8FF' }]}>
+                  {formatPace(
+                    fastLaps
+                      .map((l: any) => l.pace)
+                      .filter((v: any) => v > 0)
+                      .reduce((a: number, b: number, _: any, arr: any[]) => a + b / arr.length, 0) || null
+                  )}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Automatische Erkennung per Pace-Schwelle */}
+        <View style={s.thresholdRow}>
+          <TextInput
+            style={s.thresholdInput}
+            placeholder="z.B. 4:30"
+            placeholderTextColor="#555555"
+            value={thresholdInput}
+            onChangeText={(text) => setThresholdInput(formatThresholdInput(text))}
+            keyboardType="number-pad"
+            maxLength={4}
+          />
+          <TouchableOpacity style={s.thresholdButton} onPress={applyThreshold}>
+            <Text style={s.thresholdButtonText}>Select threshhold</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <TouchableOpacity style={s.filterToggle} onPress={() => setShowOnlyFast(!showOnlyFast)}>
+            <Text style={s.filterToggleText}>{showOnlyFast ? 'Show all' : 'Fast laps only'}</Text>
+          </TouchableOpacity>
+          {session.fitFileUri && (
+            <TouchableOpacity style={s.filterToggle} onPress={() => reparse_workout(session)}>
+              <Text style={s.filterToggleText}>Reparse</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={s.filterToggle} onPress={openTypePicker}>
+            <Text style={s.filterToggleText}>Workout-Typ ändern</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Tabellenkopf für die Lap-Liste */}
+        <View style={s.tableHeader}>
+          <Text style={[s.th, { flex: 0.5 }]}>#</Text>
+          <Text style={s.th}>Dist</Text>
+          <Text style={s.th}>Ø HR</Text>
+          <Text style={s.th}>Max HR</Text>
+          <Text style={s.th}>Pace</Text>
+        </View>
+
+        {/* Liste aller Runden, antippbar zum Markieren als "schnell" bzw.
+            im Auswahlmodus zum Markieren für die Equipment-Zuweisung */}
+        {visibleLaps.map((item: any, index: number) => (
+          <TouchableOpacity
+            key={item.index}
+            style={[
+              s.row,
+              index % 2 === 0 && s.rowEven,
+              item.isFast && s.rowFast,
+              assignMode && selectedLapIndices.has(item.index) && s.rowSelected,
+            ]}
+            onPress={() => handleLapPress(item.index)}
+          >
+            <Text style={[s.td, { flex: 0.5 }]}>{item.isFast ? '⚡' : item.index}</Text>
+            <Text style={s.td}>
+              {item.distance >= 1000
+                ? `${(item.distance / 1000).toFixed(2)}k`
+                : `${Math.round(item.distance)}m`}
+            </Text>
+            <Text style={[s.td, { color: '#FF4D4D' }]}>{item.avgHr ?? '--'}</Text>
+            <Text style={[s.td, { color: '#FF4D4D' }]}>{item.maxHr ?? '--'}</Text>
+            <Text style={[s.td, { color: '#4DB8FF' }]}>{formatPace(item.pace)}</Text>
+          </TouchableOpacity>
+        ))}
+
+        <Modal
+          visible={typePickerVisible}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setTypePickerVisible(false)}
+        >
+          <View style={s.pickerOverlay}>
+            <View style={s.pickerContainer}>
+              <Text style={s.modalTitle}>Neuer Workout-Typ</Text>
+              {availableTypes.map((type) => (
+                <TouchableOpacity
+                  key={type.name}
+                  style={s.typeOption}
+                  onPress={() => changeWorkoutType(session, type)}
+                >
+                  <View style={[s.colorDot, { backgroundColor: type.color }]} />
+                  <Text style={s.typeName}>{type.name}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={s.closeButton} onPress={() => setTypePickerVisible(false)}>
+                <Text style={s.settingButtonText}>Abbrechen</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </View>
+
+      {sport && (
+        <EquipmentAssignment
+          session={session}
+          sport={sport}
+          equipmentNameById={nameById}
+          onUpdateSession={handleSaveSession}
+          assignMode={assignMode}
+          onStartLapSelection={startLapSelection}
+          onCancelLapSelection={cancelLapSelection}
+          selectedLapCount={selectedLapIndices.size}
+          onAssignToSelectedLaps={applyEquipmentToSelectedLaps}
+        />
       )}
-
-      {/* Automatische Erkennung per Pace-Schwelle */}
-      <View style={s.thresholdRow}>
-      <TextInput
-        style={s.thresholdInput}
-        placeholder="z.B. 4:30"
-        placeholderTextColor="#555555"
-        value={thresholdInput}
-        onChangeText={(text) => setThresholdInput(formatThresholdInput(text))}
-        keyboardType="number-pad"
-        maxLength={4}
-/>
-        <TouchableOpacity style={s.thresholdButton} onPress={applyThreshold}>
-          <Text style={s.thresholdButtonText}>Select threshhold</Text>
-        </TouchableOpacity>
-        
-      </View>
-     
-           <View style={{paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-
-  <TouchableOpacity
-    style={s.filterToggle}
-    onPress={() => setShowOnlyFast(!showOnlyFast)}
-  >
-    <Text style={s.filterToggleText}>
-      {showOnlyFast ? 'Show all' : 'Fast laps only'}
-    </Text>
-  </TouchableOpacity>
-  {session.fitFileUri && (
-  <TouchableOpacity
-    style={s.filterToggle}
-    onPress={() =>reparse_workout(session)}
-  >
-    <Text style={s.filterToggleText}>
-Reparse    </Text>
-  </TouchableOpacity>
-  )}
-<TouchableOpacity style={s.filterToggle} onPress={openTypePicker}>
-  <Text style={s.filterToggleText}>Workout-Typ ändern</Text>
-</TouchableOpacity>
-
-
-
-</View>
-      {/* Tabellenkopf für die Lap-Liste */}
-      <View style={s.tableHeader}>
-        <Text style={[s.th, { flex: 0.5 }]}>#</Text>
-        <Text style={s.th}>Dist</Text>
-        <Text style={s.th}>Ø HR</Text>
-        <Text style={s.th}>Max HR</Text>
-        <Text style={s.th}>Pace</Text>
-      </View>
-
-      {/* Liste aller Runden, antippbar zum Markieren als "schnell" */}
-      {visibleLaps.map((item: any, index: number) => (
-        <TouchableOpacity
-          key={item.index}
-          style={[s.row, index % 2 === 0 && s.rowEven, item.isFast && s.rowFast]}
-          onPress={() =>handleLapPress(item.index)}
-        >
-          {/* Bei markierten Runden wird statt der Nummer ein Blitz-Symbol angezeigt */}
-          <Text style={[s.td, { flex: 0.5 }]}>{item.isFast ? '⚡' : item.index}</Text>
-          {/* Distanz: ab 1000m in km mit 2 Nachkommastellen, sonst in ganzen Metern */}
-          <Text style={s.td}>
-            {item.distance >= 1000
-              ? `${(item.distance / 1000).toFixed(2)}k`
-              : `${Math.round(item.distance)}m`}
-          </Text>
-          <Text style={[s.td, { color: '#FF4D4D' }]}>{item.avgHr ?? '--'}</Text>
-          <Text style={[s.td, { color: '#FF4D4D' }]}>{item.maxHr ?? '--'}</Text>
-          <Text style={[s.td, { color: '#4DB8FF' }]}>{formatPace(item.pace)}</Text>
-        </TouchableOpacity>
-      ))}
-
-
-<Modal
-  visible={typePickerVisible}
-  animationType="slide"
-  transparent
-  onRequestClose={() => setTypePickerVisible(false)}
->
-  <View style={s.pickerOverlay}>
-    <View style={s.pickerContainer}>
-      <Text style={s.modalTitle}>Neuer Workout-Typ</Text>
-      {availableTypes.map(type => (
-        <TouchableOpacity
-          key={type.name}
-          style={s.typeOption}
-          onPress={() => changeWorkoutType(session, type)}
-        >
-          <View style={[s.colorDot, { backgroundColor: type.color }]} />
-          <Text style={s.typeName}>{type.name}</Text>
-        </TouchableOpacity>
-      ))}
-      <TouchableOpacity style={s.closeButton} onPress={() => setTypePickerVisible(false)}>
-        <Text style={s.settingButtonText}>Abbrechen</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-</Modal>
-</View>
-{sport && (
-<>
-<EquipmentAssignment
-  session={session}
-  sport={sport}
-  equipmentNameById={nameById}
-  onUpdateSession={handleSaveSession}
-  assignMode={assignMode}
-  onAssignModeChange={setAssignMode}
-/>
-
-<EquipmentPicker
-  visible={lapPickerIndex !== null}
-  sport={sport}
-  selectedId={lapPickerIndex !== null ? session.laps[lapPickerIndex].equipmentId : undefined}
-  onSelect={handleLapEquipmentSelect}
-  onClose={() => setLapPickerIndex(null)}
-/>
-</>
-)}
     </ScrollView>
-
   );
 }
 
@@ -398,6 +378,7 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', paddingVertical: 10, borderRadius: 6 },
   rowEven: { backgroundColor: '#1A1A1A' },
   rowFast: { backgroundColor: '#1A2A0A', borderLeftWidth: 3, borderLeftColor: '#C8F135' },
+  rowSelected: { backgroundColor: '#1A2530', borderLeftWidth: 3, borderLeftColor: '#4DB8FF' },
   td: { flex: 1, color: '#F0F0F0', fontSize: 14, textAlign: 'center' },
 
   thresholdRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
@@ -422,34 +403,34 @@ const s = StyleSheet.create({
   },
   filterToggleText: { color: '#C8F135', fontSize: 12, fontWeight: '600' },
   temperature: {
-    textAlign: "right",
-    color: '#C8F135', // euer Akzent
+    textAlign: 'right',
+    color: '#C8F135',
     fontSize: 13,
   },
   pickerOverlay: {
-  flex: 1,
-  backgroundColor: 'rgba(0,0,0,0.6)',
-  justifyContent: 'flex-end',
-},
-pickerContainer: {
-  backgroundColor: '#0D0D0D',
-  borderTopLeftRadius: 16,
-  borderTopRightRadius: 16,
-  padding: 20,
-},
-typeOption: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#1A1A1A',
-  borderRadius: 12,
-  padding: 16,
-  marginBottom: 8,
-},
-   settingButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 20 },
-    settingsCard: { backgroundColor: '#222222', borderWidth: 0, borderColor: '#FFFFFF',borderRadius: 12, padding: 12 },
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  pickerContainer: {
+    backgroundColor: '#0D0D0D',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+  },
+  typeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+  },
+  settingButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 20 },
+  settingsCard: { backgroundColor: '#222222', borderWidth: 0, borderColor: '#FFFFFF', borderRadius: 12, padding: 12 },
   modalContainer: { flex: 1, backgroundColor: '#0D0D0D', padding: 16 },
   modalTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '600', marginBottom: 16 },
-    colorDot: { width: 20, height: 20, borderRadius: 10, marginRight: 12 },
+  colorDot: { width: 20, height: 20, borderRadius: 10, marginRight: 12 },
   typeName: { color: '#FFFFFF', fontSize: 16 },
   closeButton: {
     backgroundColor: '#1A1A1A',

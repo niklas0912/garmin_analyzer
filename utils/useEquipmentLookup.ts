@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { Equipment, loadEquipment } from '../utils/equipment';
-
+import { useCallback, useState } from 'react';
+import { loadEquipment } from '../utils/equipment';
+import { Equipment } from './types';
 // Lädt die Equipment-Liste einmal (bei Fokus, damit Änderungen aus dem
 // Equipment-Manager berücksichtigt werden) und liefert eine schnelle
 // id -> Equipment Nachschlagefunktion für die Anzeige in detail.tsx.

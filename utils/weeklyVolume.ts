@@ -1,4 +1,4 @@
-import type { Sport } from './equipment';
+import type { Sport } from './types';
 
 // ANPASSEN: Pfad/Namen an eure echten Typen in types.ts angleichen.
 // Erwartet wird: Workout { name: string; date: Date | string; laps: { distance: number }[] }
