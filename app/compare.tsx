@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -6,7 +6,6 @@ import { meanOf } from "../utils/details_utils";
 import { formatPace } from '../utils/fitParser';
 import { loadWorkoutsByName } from '../utils/storage';
 import { Lap, Session, WorkoutType } from '../utils/types';
-
 
 export default function comparScreen() {
     const [showOnlyFast, setShowOnlyFast] = useState<Boolean>(true);
@@ -96,6 +95,8 @@ return (
           <Text style={s.th}>Ø HR</Text>
           <Text style={s.th}>Max HR</Text>
           <Text style={s.th}>Pace</Text>
+          <MaterialCommunityIcons name="elevation-rise" style={s.th}/>        
+          <MaterialCommunityIcons name="elevation-decline" style={s.th}/>   
         </View>
         {visibleLaps.map((item: any, index: number) => (
               <TouchableOpacity
@@ -114,6 +115,8 @@ return (
                 <Text style={[s.td, { color: '#FF4D4D' }]}>{item.avgHr ?? '--'}</Text>
                 <Text style={[s.td, { color: '#FF4D4D' }]}>{item.maxHr ?? '--'}</Text>
                 <Text style={[s.td, { color: '#4DB8FF' }]}>{formatPace(item.pace)}</Text>
+                <Text style={[s.td]}>{item.eUp ?? '--'}</Text>
+                <Text style={[s.td]}>{item.eDown ?? '--'}</Text>
               </TouchableOpacity>
             ))}
       </View>

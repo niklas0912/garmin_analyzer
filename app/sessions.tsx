@@ -401,8 +401,12 @@ function log_session() {
           const avgHr = meanOf(relevantLaps, 'avgHr');
           const maxHr = maxOf(relevantLaps, 'maxHr');
 
+          const avgpace = item.laps
+            .map((l: any) => l.pace)
+            .filter((v: any) => v != null && v > 0)
+            .reduce((a: number, b: number, _: any, arr: any[]) => a + b / arr.length, 0) || null;
 
-          const avgpace = relevantLaps
+          const avgpaceIsFast = relevantLaps
             .map((l: any) => l.pace)
             .filter((v: any) => v != null && v > 0)
             .reduce((a: number, b: number, _: any, arr: any[]) => a + b / arr.length, 0) || null;
@@ -412,6 +416,9 @@ function log_session() {
           const totalDistance = item.laps.reduce((a: number, l: any) => a + (l.distance || 0), 0);
           const minutes = Math.floor(totalDuration / 60);
           const seconds = Math.round(totalDuration % 60);
+          const totalAvg = totalDuration/ totalDistance * 1000
+          const minutesTotAvg = Math.floor(totalAvg / 60);
+          const secondsTotAvg = Math.round(totalAvg % 60);
 
           return (
             // Tippen → Detailansicht, Lang drücken → Löschen
@@ -447,8 +454,12 @@ function log_session() {
                   <Text style={[s.statValue, { color: '#FF4D4D' }]}>{maxHr ?? '--'}</Text>
                 </View>
                 <View style={s.stat}>
-                  <Text style={s.statLabel}>Ø pace</Text>
-                  <Text style={[s.statValue, { color: '#4DB8FF' }]}>{formatPace(avgpace)}</Text>
+                  <Text style={s.statLabel}> Ø pace</Text>
+                  <Text style={s.statValue}>{minutesTotAvg}:{secondsTotAvg.toString().padStart(2, '0')}</Text>
+                </View>
+                <View style={s.stat}>
+                  <Text style={s.statLabel}> ⚡Ø pace</Text>
+                  <Text style={[s.statValue, { color: '#4DB8FF' }]}>{formatPace(avgpaceIsFast)}</Text>
                 </View>
                 <View style={s.stat}>
                   <Text style={s.statLabel}>Zeit</Text>

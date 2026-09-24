@@ -5,6 +5,8 @@ export type Lap = {
     avgHr: number | null;
     maxHr: number | null;
     pace: number | null;
+    eUp: number | null;
+    eDown: number | null;
     isFast: boolean;
     equipmentId?: string;
   };

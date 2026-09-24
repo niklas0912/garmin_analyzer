@@ -12,11 +12,11 @@ import { WorkoutType } from './types';
 type RawLap = {
   total_elapsed_time?: number;
   total_distance?: number;
-  avg_speed?: number;
-  temperature?: number;
   avg_heart_rate?: number;
   max_heart_rate?: number;
   lap_trigger?: number;
+  total_ascent?: number;
+  total_descent?: number;
   isFast: boolean;
 };
 
@@ -333,7 +333,7 @@ function parseFit(buffer: ArrayBuffer): ParsedFit {
           );
 
           switch (f.fieldNum) {
-            case 7:
+            case 8:
               lap.total_elapsed_time = val / 1000;
               break;
 
@@ -341,13 +341,9 @@ function parseFit(buffer: ArrayBuffer): ParsedFit {
               lap.total_distance = val / 100;
               break;
 
-            case 111:
-              lap.avg_speed = val / 1500;
-              break;
 
-            case 13:
-              lap.temperature = val;
-              break;
+
+
 
             case 15:
               lap.avg_heart_rate = val;
@@ -357,7 +353,15 @@ function parseFit(buffer: ArrayBuffer): ParsedFit {
               lap.max_heart_rate = val;
               break;
 
-            case 25:
+            case 21:
+              lap.total_ascent = val;
+              break;
+
+            case 22:
+              lap.total_descent = val;
+              break;
+
+            case 24:
               lap.lap_trigger = val;
               break;
           }
@@ -365,7 +369,7 @@ function parseFit(buffer: ArrayBuffer): ParsedFit {
           fieldOffset += f.fieldSize;
         }
 
-        if (lap.lap_trigger === 1) {
+        if (lap.lap_trigger === 0  || lap.lap_trigger === 7) {
           laps.push(lap);
         }
       }
@@ -438,13 +442,9 @@ console.log()
   const laps: Lap[] = rawLaps.map(
     (lap: RawLap, i: number): Lap => {
 
-      const avgSpeed =
-        lap.avg_speed || 0;
 
-      const rawPaceSpm =
-        avgSpeed > 0
-          ? 1 / avgSpeed
-          : null;
+
+     
 
       return {
         index: i + 1,
@@ -476,6 +476,12 @@ console.log()
 
         duration:
           lap.total_elapsed_time || 0,
+        
+        eUp:
+            lap.total_ascent || 0,
+        
+        eDown:
+          lap.total_descent || 0,
 
         isFast: false,
       };
