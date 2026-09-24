@@ -7,8 +7,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { applyThresholdToLaps, formatThresholdInput, meanOf } from "../utils/details_utils";
 import { formatPace } from '../utils/fitParser';
-import { getWorkoutTypeNameFromId } from '../utils/Sessiontype';
-import { loadAllWorkouts, loadWorkoutTypes, reparseAndUpdateWorkout, updateWorkout } from '../utils/storage';
+import { loadAllWorkouts, loadWorkoutTypes, repairSessionWoTypes, reparseAndUpdateWorkout, updateWorkout } from '../utils/storage';
 import { Sport } from '../utils/types';
 import EquipmentAssignment from './EquipmentAssignment';
 
@@ -91,13 +90,12 @@ export default function DetailScreen() {
     handleSaveSession(updated);
   }
 
-  function toSport(value: string | undefined): Sport | null {
-    return value === 'running' || value === 'bike' ? value : null;
+  function toSport(value: string | undefined): Sport  {
+    return value === 'running' || value === 'bike' ? value : "other";
   }
-  const typeName = getWorkoutTypeNameFromId(sessionId as string);
-  const workoutType = availableTypes.find((t) => t.name === typeName);
-  const sport = toSport(workoutType?.sports);
 
+  const sport = toSport(session?.woType?.sports)
+  console.log(sport)
   async function openTypePicker(): Promise<void> {
     const types: WorkoutType[] = await loadWorkoutTypes();
     setAvailableTypes(types);
@@ -125,7 +123,7 @@ export default function DetailScreen() {
         {
           text: 'Ändern',
           onPress: async () => {
-            const updated: Session = { ...session, name: newType.name };
+            const updated: Session = { ...session, name: newType.name, woType:newType };
             await updateWorkout(updated);
             setSession(updated); // optimistisches Update der UI
             setTypePickerVisible(false);
@@ -135,6 +133,12 @@ export default function DetailScreen() {
     );
   }
 
+
+function logger (){
+  console.log(session)
+  console.log(session?.woType)
+  repairSessionWoTypes()
+}
   // Lädt beim Mounten alle Workouts und sucht die passende Session anhand
   // der sessionId heraus. Lädt außerdem gleich die Workout-Typen mit —
   // vorher wurden die erst beim Öffnen des Type-Pickers geladen, wodurch
@@ -145,6 +149,7 @@ export default function DetailScreen() {
       if (found) setSession(found);
     });
     loadWorkoutTypes().then(setAvailableTypes);
+
   }, []);
 
   // Solange die Session noch nicht geladen ist, wird nur ein leerer
@@ -274,6 +279,10 @@ export default function DetailScreen() {
           <TouchableOpacity style={s.filterToggle} onPress={openTypePicker}>
             <Text style={s.filterToggleText}>Workout-Typ ändern</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={s.filterToggle} onPress={logger}>
+            <Text> logger</Text>
+            
+          </TouchableOpacity>
         </View>
 
         {/* Tabellenkopf für die Lap-Liste */}
@@ -337,7 +346,6 @@ export default function DetailScreen() {
         </Modal>
       </View>
 
-      {sport && (
         <EquipmentAssignment
           session={session}
           sport={sport}
@@ -349,7 +357,6 @@ export default function DetailScreen() {
           selectedLapCount={selectedLapIndices.size}
           onAssignToSelectedLaps={applyEquipmentToSelectedLaps}
         />
-      )}
     </ScrollView>
   );
 }
@@ -357,7 +364,7 @@ export default function DetailScreen() {
 // Styles im dunklen Design des restlichen Apps
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0D0D0D' },
-  list: { padding: 16, paddingTop: 60, paddingBottom: 40 },
+  list: { padding: 16, paddingTop: 60, paddingBottom: 60 },
   title: { fontSize: 20, fontWeight: '800', color: '#F0F0F0', marginBottom: 4 },
   hint: { fontSize: 12, color: '#555555', marginBottom: 16 },
   summary: {
@@ -439,4 +446,5 @@ const s = StyleSheet.create({
     marginTop: 12,
     alignItems: 'center',
   },
+  modal: {paddingBottom: 15, paddingTop: 15}
 });

@@ -5,20 +5,20 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { meanOf } from "../utils/details_utils";
 import { formatPace } from '../utils/fitParser';
 import { loadWorkoutsByName } from '../utils/storage';
-import { Lap, Session } from '../utils/types';
-
+import { Lap, Session, WorkoutType } from '../utils/types';
 
 
 export default function comparScreen() {
     const [showOnlyFast, setShowOnlyFast] = useState<Boolean>(true);
 
-    const { workout, ids } = useLocalSearchParams();
+    const { workoutString, ids } = useLocalSearchParams();
     const selectedIds = (ids as string).split(',');
+    const workout: WorkoutType = JSON.parse(workoutString as string);
 
     const [sessions, setSessions] = useState<Session[]>([]);
 
     useEffect(() => {
-    loadWorkoutsByName(workout as string).then(all => {
+    loadWorkoutsByName(workout.name as string).then(all => {
         const filtered = (all as Session[]).filter((w: Session) => selectedIds.includes(w.id));
         setSessions(filtered as Session[]);
     });

@@ -108,7 +108,14 @@ function handleDelete(wt: WorkoutType) {
         <TouchableOpacity
           key={workout.name}
           style={[s.card, { borderLeftColor: workout.color }]}
-          onPress={() => router.push({ pathname: '/sessions', params: { workout: workout.name } })}
+            onPress={() =>
+              router.push({
+                pathname: '/sessions',
+                params: {
+                  workoutString: JSON.stringify(workout)
+                }
+              })
+            }
             onLongPress={() => handleDelete(workout)}
         >
           <Text style={[s.cardTitle, { color: workout.color }]}>{workout.name}</Text>

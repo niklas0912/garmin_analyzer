@@ -184,7 +184,7 @@ export async function deleteAllWorkouts(): Promise<void> {
 }
 
 export async function reparseAndUpdateWorkout(workout: Session): Promise<Session> {
-  const reparsedSession: Session = await parseFitFile(workout.fitFileUri, workout.name);
+  const reparsedSession: Session = await parseFitFile(workout.fitFileUri, workout.woType);
   reparsedSession.id = workout.id; // ID des Original-Workouts erzwingen
 
   const oldFastByIndex = new Map(workout.laps.map(lap => [lap.index, lap.isFast]));
@@ -263,9 +263,50 @@ export async function updateWorkoutType(
   if (oldType.name !== newType.name) {
     const affectedSessions = await loadWorkoutsByName(oldType.name);
     for (const session of affectedSessions) {
-      await updateWorkout({ ...session, name: newType.name });
+      await updateWorkout({ ...session, name: newType.name, woType: newType });
     }
   }
 
   return updated;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// Einmalige Reparatur: `woType` war bei manchen Sessions (Alt-Daten, oder
+// Sessions die vor Einführung von updateWorkoutType()-Cascading angelegt
+// wurden) nicht synchron zum `name`-Feld. `name` ist die Quelle der
+// Wahrheit (Relikt der alten Speicherung) — diese Funktion setzt `woType`
+// bei jeder Session auf den WorkoutType, dessen `name` mit `session.name`
+// übereinstimmt.
+// ─────────────────────────────────────────────────────────────────────────
+export async function repairSessionWoTypes(): Promise<{ fixed: number; skipped: number }> {
+  const [sessions, types] = await Promise.all([loadAllWorkouts(), loadWorkoutTypes()]);
+  const typeByName = new Map(types.map(t => [t.name, t]));
+
+  let fixed = 0;
+  let skipped = 0;
+
+  for (const session of sessions) {
+    const correctType = typeByName.get(session.name);
+
+    if (!correctType) {
+      // Kein WorkoutType mit diesem Namen mehr vorhanden (z.B. gelöscht) —
+      // kann hier nichts sinnvoll setzen, überspringen statt raten.
+      console.warn(`Kein WorkoutType für Session "${session.id}" mit name="${session.name}" gefunden.`);
+      skipped++;
+      continue;
+    }
+
+    const isInSync =
+      session.woType?.name === correctType.name &&
+      session.woType?.color === correctType.color &&
+      session.woType?.sports === correctType.sports;
+
+    if (!isInSync) {
+      await updateWorkout({ ...session, woType: correctType });
+      fixed++;
+    }
+  }
+
+  return { fixed, skipped };
 }

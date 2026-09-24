@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import EquipmentPicker from './EquipmentPicker';
+import React, { useState } from 'react';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Equipment, Sport } from '../utils/types';
+import EquipmentPicker from './EquipmentPicker';
 
 const ACCENT = '#C8F135';
 
@@ -88,6 +88,7 @@ export default function EquipmentAssignment<T extends SessionLike>({
 
   return (
     <>
+    <View style={s.all}>
       <TouchableOpacity style={s.row} onPress={handlePress} disabled={assignMode}>
         <Ionicons
           name={sport === 'running' ? 'footsteps-outline' : 'bicycle-outline'}
@@ -137,11 +138,13 @@ export default function EquipmentAssignment<T extends SessionLike>({
         onSelect={handleBatchEquipmentSelect}
         onClose={() => setBatchPickerVisible(false)}
       />
+      </View>
     </>
   );
 }
 
 const s = StyleSheet.create({
+  all: {paddingTop: 30},
   row: {
     flexDirection: 'row',
     alignItems: 'center',

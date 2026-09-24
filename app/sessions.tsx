@@ -17,7 +17,7 @@ import { useCallback, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { formatPace, parseFitFile } from '../utils/fitParser';
 import { deleteWorkout, loadAllWorkouts, loadWorkoutsByName, saveWorkout } from '../utils/storage';
-import { Lap, Session } from '../utils/types';
+import { Lap, Session, WorkoutType } from '../utils/types';
 
 
 
@@ -25,8 +25,13 @@ export default function SessionsScreen() {
   // useLocalSearchParams liest die URL-Parameter aus.
   // Wenn wir von der Startseite navigieren mit { workout: "Intervalle 400m" },
   // bekommen wir hier genau diesen Wert zurück.
-  const { workout } = useLocalSearchParams();
+const { workoutString } = useLocalSearchParams();
+console.log(workoutString)
+const workout: WorkoutType = JSON.parse(workoutString as string);
 
+console.log(workout.name);
+console.log(workout.color);
+console.log(workout.sports);
   // useState speichert die Liste der Sessions im Arbeitsspeicher.
   // Wenn sich sessions ändert, rendert React Native den Screen automatisch neu.
   // <any[]> sagt TypeScript: das ist ein Array, wir kümmern uns nicht um den genauen Typ.
@@ -40,7 +45,7 @@ export default function SessionsScreen() {
   // useCallback verhindert dass die Funktion bei jedem Render neu erstellt wird.
   useFocusEffect(useCallback(() => {
     console.log('Sessions neu laden...');
-    loadWorkoutsByName(workout as string).then(data => {
+    loadWorkoutsByName(workout.name as string).then(data => {
       setSessions(data as Session[]);
     });
   }, [workout])); // [workout] bedeutet: nur neu ausführen wenn sich workout ändert
@@ -48,7 +53,7 @@ export default function SessionsScreen() {
   // ── FIT-Datei importieren ─────────────────────────────────────────────────
   // async/await: Wir warten auf Nutzeraktionen (Datei auswählen) und
   // auf asynchrone Operationen (Datei lesen, speichern).
-async function handleImport() {
+async function handleImport(woType:WorkoutType) {
   const result = await DocumentPicker.getDocumentAsync({
     type: '*/*',
     copyToCacheDirectory: true,
@@ -93,7 +98,7 @@ async function handleImport() {
   const importErrors: string[] = [];
   for (const { file, base64, fileHash, name } of newFiles) {
     try {
-      await proceedImport(file, base64, fileHash);
+      await proceedImport(file, base64, fileHash, woType);
     } catch (err) {
       console.log(`Import fehlgeschlagen für ${name}:`, err);
       importErrors.push(name);
@@ -121,7 +126,7 @@ async function handleImport() {
             const duplicateErrors: string[] = [];
             for (const { file, base64, fileHash, name } of duplicateFiles) {
               try {
-                await proceedImport(file, base64, fileHash);
+                await proceedImport(file, base64, fileHash,woType);
               } catch (err) {
                 console.log(`Import fehlgeschlagen für ${name}:`, err);
                 duplicateErrors.push(name);
@@ -146,8 +151,8 @@ async function handleImport() {
 
 
 
-  async function proceedImport(file: any, base64: string, fileHash: string) {
-    const data = await parseFitFile(file.uri, workout as string);
+  async function proceedImport(file: any, base64: string, fileHash: string, woType:WorkoutType) {
+    const data = await parseFitFile(file.uri, workout);
   
     // Rohdatei sauber ablegen, Dateiname an die Workout-ID gekoppelt
     const fitFilesDir = new Directory(Paths.document, 'fit-files');
@@ -167,7 +172,7 @@ async function handleImport() {
   
     await saveWorkout(workoutWithMeta);
   
-    const updated = await loadWorkoutsByName(workout as string);
+    const updated = await loadWorkoutsByName(workout.name as string);
     setSessions(updated as Session[]);
     const entries = fitFilesDir.list();
     const pathToDir = fitFilesDir.uri
@@ -320,7 +325,7 @@ function log_session() {
   <TouchableOpacity
   style={s.cancelButton}
   onPress={() => {
-    router.push({ pathname: '/compare',  params: { workout, ids: Array.from(selectedIds).join(',') } })
+    router.push({ pathname: '/compare',  params: { workoutString, ids: Array.from(selectedIds).join(',') } })
   }}
 >
 <Ionicons name="git-compare-outline" size={18} color="#4DB8FF" />
@@ -348,12 +353,12 @@ function log_session() {
 //        {/* ListHeaderComponent wird einmal ganz oben angezeigt – vor allen Sessions */}
         ListHeaderComponent={
           <View>
-                <Text style={s.title}>{workout}</Text>
+                <Text style={s.title}>{workout.name}</Text>
           <View style={{ flexDirection: 'row', gap: 12 }}>
         
 
             {/* Import-Button */}
-            <TouchableOpacity style={s.button} onPress={handleImport}>
+            <TouchableOpacity style={s.button} onPress={()=> {handleImport(workout)}}>
               <Text style={s.buttonText}>+ Import .fit file</Text>
             </TouchableOpacity>
 
@@ -361,7 +366,7 @@ function log_session() {
             {sessions.length > 0 && (
               <TouchableOpacity
                 style={[s.button, { borderColor: '#4DB8FF', marginBottom: 24 }]}
-                onPress={() => router.push({ pathname: '/progress', params: { workout } })}
+                onPress={() => router.push({ pathname: '/progress', params: { workoutString } })}
               >
                 <Text style={[s.buttonText, { color: '#4DB8FF' }]}>📈 Show Progress</Text>
               </TouchableOpacity>
@@ -470,7 +475,7 @@ function log_session() {
 // StyleSheet.create() ist wie CSS, nur in JavaScript.
 // Die Styles werden einmal erstellt und nicht bei jedem Render neu berechnet.
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0D0D0D' },
+  container: { flex: 1, backgroundColor: '#0D0D0D', paddingBlock: 40 },
   // flex: 1 bedeutet "nimm den gesamten verfügbaren Platz"
   
   list: { padding: 16, paddingTop: 60, gap: 12 },

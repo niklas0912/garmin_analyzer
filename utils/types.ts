@@ -18,6 +18,7 @@ export type Lap = {
     fitFileHash?: string;
     fitFileUri: string;
     equipmentId?: string;
+    woType: WorkoutType
 
   };
 
@@ -44,7 +45,7 @@ export interface WeekVolume {
   km: number;
 }
 
-export type Sport = 'running' | 'bike';
+export type Sport = 'running' | 'bike' | "other";
 
 export interface Equipment {
   id: string;

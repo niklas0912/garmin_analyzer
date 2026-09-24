@@ -6,7 +6,7 @@ import { formatPace } from '../utils/fitParser';
 import { loadWorkoutsByName } from '../utils/storage';
 // oder: import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
-import { Session } from '../utils/types';
+import { Session, WorkoutType } from '../utils/types';
 // Breite des Charts: Bildschirmbreite abzüglich horizontalem Padding (2x 32px = 64px)
 const W = Dimensions.get('window').width - 64;
 
@@ -72,7 +72,9 @@ const METRICS: {
 export default function ProgressScreen() {
 
   // Workout-Name kommt als Query-Parameter aus der Navigation (expo-router)
-  const { workout } = useLocalSearchParams();
+  const { workoutString } = useLocalSearchParams();
+const workout: WorkoutType = JSON.parse(workoutString as string);
+
   const [yAxis, setYAxis] = useState({
     pace: {
       min: '3.5',
@@ -100,7 +102,7 @@ export default function ProgressScreen() {
   // passendem Namen aus dem lokalen Speicher.
   useFocusEffect(
     useCallback(() => {
-      loadWorkoutsByName(workout as string).then(data => {
+      loadWorkoutsByName(workout.name as string).then(data => {
         setSessions(data as Session[]);
       });
     }, [workout])
@@ -202,7 +204,7 @@ export default function ProgressScreen() {
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
       {/* Kopfbereich: Workout-Name und Anzahl der erfassten Sessions */}
-      <Text style={s.title}>{workout}</Text>
+      <Text style={s.title}>{workout.name}</Text>
       <Text style={s.subtitle}>{sessions.length} Sessions</Text>
 
       {/* Tabs zum Umschalten der angezeigten Metrik */}

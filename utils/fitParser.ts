@@ -1,6 +1,7 @@
 import { Lap, Session } from '@/utils/types';
 import { File } from 'expo-file-system';
 import * as FileSystem from 'expo-file-system/legacy';
+import { WorkoutType } from './types';
 
 
 
@@ -397,14 +398,14 @@ function parseFit(buffer: ArrayBuffer): ParsedFit {
  */
 export async function parseFitFile(
   uri: string,
-  workoutName: string
+  workout: WorkoutType
 ): Promise<Session> {
     const testFile = new File(uri);
     console.log("file exists",testFile.exists)
     console.log("file size",testFile.size)
 
 console.log("uri",uri)
-console.log("name",workoutName)
+console.log("name",workout.name)
 console.log()
   const base64 =
     await FileSystem.readAsStringAsync(uri, {
@@ -482,7 +483,7 @@ console.log()
   );
 
   return {
-    name: workoutName,
+    name: workout.name,
 
     date:
       sessionDate ||
@@ -494,9 +495,11 @@ console.log()
       average_temp,
 
     id:
-      `${workoutName}_${Date.now()}`,
+      `${workout.name}_${Date.now()}`,
 
     fitFileUri: uri,
+
+    woType: workout
   };
 }
 
