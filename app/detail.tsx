@@ -12,7 +12,7 @@ import { Sport } from '../utils/types';
 import EquipmentAssignment from './EquipmentAssignment';
 
 /**
- * DetailScreen
+ * DetailScreen 
  *
  * Zeigt die Detailansicht einer einzelnen Trainingssession an: alle
  * einzelnen Runden (Laps) mit Distanz, Herzfrequenz und Pace.

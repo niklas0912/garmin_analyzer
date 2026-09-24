@@ -23,8 +23,7 @@ export default function comparScreen() {
         setSessions(filtered as Session[]);
     });
     }, [workout, ids]);
-    console.log("test")
-    console.log(sessions)
+
 
 
     
@@ -64,7 +63,7 @@ return (
     </View>
          {hasFastLaps && (
                 <View style={s.summary}>
-                  <Text style={s.summaryTitle}>Fast laps metrics ({fastLaps.length})</Text>
+                  <Text style={s.summaryTitle}>Fast laps averages ({fastLaps.length})</Text>
                   <View style={s.summaryStats}>
                     <View style={s.stat}>
                       <Text style={s.statLabel}>Ø HR</Text>
@@ -152,10 +151,10 @@ const s = StyleSheet.create({
 //   th: { flex: 1, color: '#555555', fontSize: 11, textAlign: 'center' },
 th: {flex: 1, color: '#F0F0F0', fontSize: 8, textAlign: 'center' },
 
-  row: { flexDirection: 'row', paddingVertical: 10, borderRadius: 6 },
+  row: { flexDirection: 'row', paddingVertical: 5, borderRadius: 6 },
   rowEven: { backgroundColor: '#1A1A1A' },
   rowFast: { backgroundColor: '#1A2A0A', borderLeftWidth: 3, borderLeftColor: '#C8F135' },
-  td: { flex: 1, color: '#F0F0F0', fontSize: 14, textAlign: 'center' },
+  td: { flex: 1, color: '#F0F0F0', fontSize: 10, textAlign: 'center' },
 
   thresholdRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   thresholdInput: {

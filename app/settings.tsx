@@ -8,12 +8,11 @@ export default function SettingsScreen() {
   const [isReparsing, setIsReparsing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-
-
   const PRESET_COLORS = [
     '#C8F135', '#4DB8FF', '#FF4D4D', '#FF9F4D',
     '#B84DFF', '#4DFFB8', '#FF4DB8', '#FFFFFF',
   ];
+
   const [typesModalVisible, setTypesModalVisible] = useState(false);
   const [workoutTypes, setWorkoutTypes] = useState<WorkoutType[]>([]);
   const [editingType, setEditingType] = useState<WorkoutType | null>(null);
@@ -30,7 +29,7 @@ export default function SettingsScreen() {
   function startEditing(type: WorkoutType): void {
     setEditingType(type);
     setEditName(type.name);
-    setEditColor(type.color)
+    setEditColor(type.color);
     setEditSports(type.sports);
   }
 
@@ -43,29 +42,32 @@ export default function SettingsScreen() {
   async function saveEdit(): Promise<void> {
     if (!editingType) return;
     const trimmedName = editName.trim();
+
     if (trimmedName.length === 0) {
-      Alert.alert('Ungültiger Name', 'Der Name darf nicht leer sein.');
+      Alert.alert('Invalid name', 'The name cannot be empty.');
       return;
     }
 
     const nameChanged = trimmedName !== editingType.name;
+
     const doSave = async () => {
       const updated = await updateWorkoutType(editingType, {
         name: trimmedName,
         color: editColor,
         sports: editSports,
       });
+
       setWorkoutTypes(updated);
       cancelEditing();
     };
 
     if (nameChanged) {
       Alert.alert(
-        'Name ändern?',
-        `Alle bestehenden Sessions vom Typ "${editingType.name}" werden auf "${trimmedName}" umgezogen.`,
+        'Change name?',
+        `All existing sessions of type "${editingType.name}" will be moved to "${trimmedName}".`,
         [
-          { text: 'Abbrechen', style: 'cancel' },
-          { text: 'Ändern', onPress: doSave },
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Change', onPress: doSave },
         ]
       );
     } else {
@@ -80,19 +82,19 @@ export default function SettingsScreen() {
       try {
         await reparseAndUpdateWorkout(workout);
       } catch (err) {
-        console.log(`Reparse fehlgeschlagen für ${workout.name} (${workout.id}):`, err);
+        console.log(`Reparsing failed for ${workout.name} (${workout.id}):`, err);
       }
     }
   }
 
   function confirmReparseAll(): void {
     Alert.alert(
-      'Alle Sessions neu parsen?',
-      'Alle gespeicherten Workouts werden erneut aus den FIT-Dateien geparst. Manuelle Änderungen (z. B. isFast) gehen dabei verloren.',
+      'Reparse all sessions (after update)',
+      'All saved workouts will be parsed again from the FIT files. Manual changes (e.g., isFast and Equipment) will be retained.',
       [
-        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Neu parsen',
+          text: 'Reparse',
           style: 'destructive',
           onPress: async () => {
             setIsReparsing(true);
@@ -107,14 +109,14 @@ export default function SettingsScreen() {
     );
   }
 
-    function confirmDeleteAll(): void {
+  function confirmDeleteAll(): void {
     Alert.alert(
-      'Alle Sessions löschen?',
-      'Sämtliche importierten Workouts werden unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.',
+      'Delete all workouts',
+      'All imported workouts will be permanently deleted. This action cannot be undone (unless you have a backup).',
       [
-        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Alle löschen',
+          text: 'Delete all',
           style: 'destructive',
           onPress: async () => {
             setIsDeleting(true);
@@ -128,6 +130,7 @@ export default function SettingsScreen() {
       ]
     );
   }
+
   return (
     <View style={s.container}>
       <View style={s.content}>
@@ -136,7 +139,6 @@ export default function SettingsScreen() {
           onPress={() => router.push({ pathname: '/backup_screen' })}
         >
           <Text style={s.settingButtonText}>Import/Export backup</Text>
-          {/* <Text style={s.cardHint}>Tippen → Sessions · Lang drücken → Import</Text> */}
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -145,26 +147,29 @@ export default function SettingsScreen() {
           disabled={isReparsing}
         >
           <Text style={s.settingButtonText}>
-            {isReparsing ? 'Wird neu geparst…' : 'Alle Sessions neu parsen'}
+            {isReparsing ? 'Reparsing...' : 'Reparse all sessions'}
           </Text>
         </TouchableOpacity>
-          <TouchableOpacity
+
+        <TouchableOpacity
           style={[s.settingsCard]}
           onPress={confirmDeleteAll}
           disabled={isReparsing || isDeleting}
         >
           <Text style={s.settingButtonText}>
-            {isDeleting ? 'Wird gelöscht…' : 'Alle Sessions löschen'}
+            {isDeleting ? 'Deleting...' : 'Delete all sessions'}
           </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
-  style={[s.settingsCard]}
-  onPress={openTypesModal}
->
-  <Text style={s.settingButtonText}>Workout-Typen verwalten</Text>
-</TouchableOpacity>
+          style={[s.settingsCard]}
+          onPress={openTypesModal}
+        >
+          <Text style={s.settingButtonText}>Manage workout types</Text>
+        </TouchableOpacity>
       </View>
-           <Modal
+
+      <Modal
         visible={typesModalVisible}
         animationType="slide"
         onRequestClose={() => {
@@ -175,27 +180,37 @@ export default function SettingsScreen() {
         <View style={s.modalContainer}>
           {!editingType ? (
             <>
-              <Text style={s.modalTitle}>Workout-Typen</Text>
+              <Text style={s.modalTitle}>Workout Types</Text>
+
               <FlatList
                 data={workoutTypes}
                 keyExtractor={item => item.name}
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={s.typeRow} onPress={() => startEditing(item)}>
-                    <View style={[s.colorDot, { backgroundColor: item.color }]} />
+                  <TouchableOpacity
+                    style={s.typeRow}
+                    onPress={() => startEditing(item)}
+                  >
+                    <View
+                      style={[
+                        s.colorDot,
+                        { backgroundColor: item.color },
+                      ]}
+                    />
                     <Text style={s.typeName}>{item.name}</Text>
                   </TouchableOpacity>
                 )}
               />
+
               <TouchableOpacity
                 style={s.closeButton}
                 onPress={() => setTypesModalVisible(false)}
               >
-                <Text style={s.settingButtonText}>Schließen</Text>
+                <Text style={s.settingButtonText}>Close</Text>
               </TouchableOpacity>
             </>
           ) : (
             <>
-              <Text style={s.modalTitle}>Typ bearbeiten</Text>
+              <Text style={s.modalTitle}>Edit Workout Type</Text>
 
               <TextInput
                 style={s.nameInput}
@@ -204,14 +219,17 @@ export default function SettingsScreen() {
                 placeholder="Name"
                 placeholderTextColor="#666"
               />
-   <TextInput
+
+              <TextInput
                 style={s.nameInput}
                 value={editSports}
                 onChangeText={setEditSports}
-                placeholder="Name"
+                placeholder="Sports"
                 placeholderTextColor="#666"
               />
-              <Text style={s.colorLabel}>Farbe</Text>
+
+              <Text style={s.colorLabel}>Color</Text>
+
               <View style={s.colorGrid}>
                 {PRESET_COLORS.map(color => (
                   <TouchableOpacity
@@ -227,11 +245,18 @@ export default function SettingsScreen() {
               </View>
 
               <View style={s.editActions}>
-                <TouchableOpacity style={s.editButton} onPress={cancelEditing}>
-                  <Text style={s.settingButtonText}>Abbrechen</Text>
+                <TouchableOpacity
+                  style={s.editButton}
+                  onPress={cancelEditing}
+                >
+                  <Text style={s.settingButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.editButton} onPress={saveEdit}>
-                  <Text style={s.settingButtonText}>Speichern</Text>
+
+                <TouchableOpacity
+                  style={s.editButton}
+                  onPress={saveEdit}
+                >
+                  <Text style={s.settingButtonText}>Save</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -243,28 +268,74 @@ export default function SettingsScreen() {
 }
 
 const s = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#0D0D0D' },
-    // flex: 1 bedeutet "nimm den gesamten verfügbaren Platz"
-    content: {
-        flex: 0.8,
-        gap: 20,
-        paddingTop: 40,      // Abstand nach oben
-        paddingHorizontal: 20, // Abstand zu linkem/rechtem Rand
-      },
-    list: { padding: 16, paddingTop: 60, gap: 12 },
-    // paddingTop: 60 damit der Inhalt nicht unter der Statusleiste liegt
-    // gap: 12 = Abstand zwischen den Karten
-    
-    title: { fontSize: 22, fontWeight: '800', color: '#F0F0F0', marginBottom: 16 },
-    button: {
-      backgroundColor: '#222222', borderRadius: 12, padding: 16,
-      alignItems: 'center',  // Text horizontal zentrieren
-      borderWidth: 1, borderColor: '#C8F135', marginBottom: 24,
-    },
-    settingButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 20 },
-    settingsCard: { backgroundColor: '#222222', borderWidth: 0, borderColor: '#FFFFFF',borderRadius: 12, padding: 12 },
-  modalContainer: { flex: 1, backgroundColor: '#0D0D0D', padding: 16 },
-  modalTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '600', marginBottom: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: '#0D0D0D',
+  },
+
+  // flex: 1 bedeutet "nimm den gesamten verfügbaren Platz"
+  content: {
+    flex: 0.8,
+    gap: 20,
+    paddingTop: 40,
+    paddingHorizontal: 20,
+  },
+
+  list: {
+    padding: 16,
+    paddingTop: 60,
+    gap: 12,
+  },
+
+  // paddingTop: 60 damit der Inhalt nicht unter der Statusleiste liegt
+  // gap: 12 = Abstand zwischen den Karten
+
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#F0F0F0',
+    marginBottom: 16,
+  },
+
+  button: {
+    backgroundColor: '#222222',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#C8F135',
+    marginBottom: 24,
+  },
+
+  settingButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 20,
+  },
+
+  settingsCard: {
+    backgroundColor: '#222222',
+    borderWidth: 0,
+    borderColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+  },
+
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#0D0D0D',
+    padding: 16,
+    paddingTop: 45,
+    paddingBottom: 55
+  },
+
+  modalTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+
   typeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -273,8 +344,19 @@ const s = StyleSheet.create({
     padding: 16,
     marginBottom: 8,
   },
-  colorDot: { width: 20, height: 20, borderRadius: 10, marginRight: 12 },
-  typeName: { color: '#FFFFFF', fontSize: 16 },
+
+  colorDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    marginRight: 12,
+  },
+
+  typeName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+
   closeButton: {
     backgroundColor: '#1A1A1A',
     borderRadius: 12,
@@ -282,6 +364,7 @@ const s = StyleSheet.create({
     marginTop: 12,
     alignItems: 'center',
   },
+
   nameInput: {
     backgroundColor: '#1A1A1A',
     color: '#FFFFFF',
@@ -290,8 +373,20 @@ const s = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
   },
-  colorLabel: { color: '#FFFFFF', fontSize: 14, marginBottom: 8 },
-  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
+
+  colorLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+
   colorSwatch: {
     width: 40,
     height: 40,
@@ -299,8 +394,16 @@ const s = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  colorSwatchSelected: { borderColor: '#FFFFFF' },
-  editActions: { flexDirection: 'row', gap: 12 },
+
+  colorSwatchSelected: {
+    borderColor: '#FFFFFF',
+  },
+
+  editActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
   editButton: {
     flex: 1,
     backgroundColor: '#1A1A1A',
@@ -308,6 +411,5 @@ const s = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
   },
+});
 
-
-  });
