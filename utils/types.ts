@@ -45,6 +45,8 @@ export interface DateRange {
 export interface WeekVolume {
   weekStart: Date; // Montag der jeweiligen Woche
   km: number;
+  hours: number;
+  minutes: number;
 }
 
 export type Sport = 'running' | 'bike' | "other";

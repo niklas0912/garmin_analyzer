@@ -373,12 +373,6 @@ function log_session() {
             )}
           </View>
           <View style={{ flexDirection: 'row', gap: 12 }}>
-         <TouchableOpacity
-            style={[s.button, { borderColor: '#4DB8FF', marginBottom: 24 }]}
-            onPress={debugDummy}
-          >
-            <Text style={[s.buttonText, { color: '#4DB8FF' }]}>📈 Fortschritt anzeigen</Text>
-          </TouchableOpacity>
             </View>
           </View>
 

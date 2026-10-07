@@ -1,11 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
-import { dateKey, groupSessionsByDate, weekDistance } from '../../utils/sessionStats';
+import { dateKey, groupSessionsByDate, weekDistance, weekDuration } from '../../utils/sessionStats';
 import { loadAllWorkouts, loadDayNotes, loadWorkoutTypes, saveDayNote } from '../../utils/storage';
 import { Session, WorkoutType } from '../../utils/types';
-
 const COLORS = { bg: '#0D0D0D', card: '#1A1A1A', accent: '#C8F135', text: '#FFFFFF', muted: '#8A8A8A' };
 
 function getMonthGrid(year: number, month: number): Date[][] {
@@ -103,8 +102,17 @@ const panResponder = useRef(
                 );
               })}
               <View style={styles.weekSummary}>
-                <Text style={styles.weekLabel}>Week</Text>
-                <Text style={styles.weekValue}>{(weekDistance(sessionsThisWeek) / 1000).toFixed(1)} km</Text>
+                <View style={styles.weekSummarySport}>
+                  <FontAwesome5 name={'running'} style={styles.ionicon}/>
+                  <Text style={styles.weekSummaryEnetry}>{(weekDistance(sessionsThisWeek, "running") / 1000).toFixed(1)}</Text>
+                  <Text style={styles.weekSummaryEnetry}>{weekDuration(sessionsThisWeek, "running")}</Text>
+                </View>
+                <View>
+                  <Ionicons name={'bicycle-outline'} style={styles.bike}/>
+                  <Text style={styles.weekSummaryEnetry}>{(weekDistance(sessionsThisWeek, "bike") / 1000).toFixed(1)} </Text>
+                  <Text style={styles.weekSummaryEnetry}>
+                     {weekDuration(sessionsThisWeek, "bike")}</Text>
+                </View>
               </View>
             </View>
           );
@@ -197,7 +205,7 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     flex: 1,
-    minHeight: 64,
+    minHeight: 80,
     padding: 4,
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: '#2A2A2A',
@@ -219,10 +227,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   weekSummary: {
-    width: 56,
+    flexDirection:"row",
+    width: 80,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.card,
+  },
+  weekSummarySport: {
+    alignItems: "center",
+    paddingRight: 15,
+
   },
   weekLabel: {
     color: COLORS.muted,
@@ -295,5 +309,22 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
     fontSize: 14,
-    }
+    },
+    ionicon: {
+      fontSize:14,
+      paddingBottom:5
+    },
+    bike: {
+      fontSize:18,
+      fontWeight:800,
+      paddingBottom:3
+
+    },
+    weekSummaryEnetry:{
+      color: COLORS.muted,
+      fontSize: 14,
+            fontWeight:800
+
+  },
+    
 })

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "GarminApp3",
-    "slug": "GarminApp3",
+    "name": "GarminAanlyzer",
+    "slug": "garminapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -44,6 +44,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c5f23b8d-92c2-47d8-aad5-4308f8f9107a"
+      }
+    },
+    "owner": "n1k1as0912s-team"
   }
 }

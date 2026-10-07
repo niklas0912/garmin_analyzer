@@ -32,7 +32,7 @@ function weekKey(d: Date): string {
 }
 
 // Robust gegenüber beiden möglichen Formen von WorkoutType.sports (einzelner Wert oder Array)
-function typeMatchesSport(t: WorkoutType, sport: Sport): boolean {
+export function typeMatchesSport(t: WorkoutType, sport: Sport): boolean {
   const val = (t as unknown as { sports?: Sport | Sport[] }).sports;
   if (Array.isArray(val)) return val.includes(sport);
   return val === sport;
@@ -67,11 +67,16 @@ export function computeWeeklyVolume(
       return sum + (typeof d === 'number' && d > 0 ? d : 0);
     }, 0);
 
+    const totalDuration = (w.laps ?? []).reduce((sum, lap) => {
+      const d = lap.duration;
+      return sum + (typeof d === 'number' && d > 0 ? d : 0);
+    }, 0);
+
     const existing = buckets.get(key);
     if (existing) {
       existing.km += totalMeters / 1000;
     } else {
-      buckets.set(key, { weekStart, km: totalMeters / 1000 });
+      buckets.set(key, { weekStart, km: totalMeters / 1000, minutes: Math.round(totalDuration%60) , hours: Math.floor(totalDuration)});;
     }
   }
 

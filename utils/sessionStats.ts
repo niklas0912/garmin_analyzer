@@ -1,6 +1,5 @@
 
-import type { Session } from './types';
-
+import type { Session, Sport } from './types';
 
 
 // Datum -> 'YYYY-MM-DD' Key, unabhängig von Uhrzeit
@@ -20,6 +19,32 @@ export function groupSessionsByDate(sessions: Session[]): Record<string, Session
 }
 
 // Summe über alle Laps aller Sessions einer Woche
-export function weekDistance(sessions: Session[]): number {
-  return sessions.reduce((sum, s) => sum + s.laps.reduce((a, l) => a + (l.distance ?? 0), 0), 0);
+export function weekDistance(sessions: Session[], sports:Sport): number {
+  return sessions.filter(s => s.woType.sports === sports).reduce(
+    (sum, s) => sum + s.laps.reduce((a, l) => a + (l.distance ?? 0), 0), 0);
+}
+
+export function weekDuration(sessions: Session[], sport: Sport): string {
+  if (!Array.isArray(sessions) || sessions.length === 0) {
+    return '0:0';
+  }
+
+  const totalMinutes = sessions
+    .filter(s => s?.woType?.sports === sport)
+    .reduce((sum, s) => {
+      const sessionMinutes = (s.laps ?? []).reduce((a, l) => {
+        const value = l?.duration; // ggf. l.distance, falls das eigentlich Dauer sein soll
+        return a + (typeof value === 'number' && !Number.isNaN(value) ? value : 0);
+      }, 0);
+      return sum + sessionMinutes;
+    }, 0);
+
+  const safeTotal = Number.isFinite(totalMinutes) ? Math.max(0, totalMinutes) : 0;
+  const hours = Math.floor(safeTotal / 3600);
+  const minutes = Math.round(safeTotal/60 % 60);
+  if (minutes < 10) {
+      return `${hours}:0${minutes}`;
+
+  }
+  return `${hours}:${minutes}`;
 }

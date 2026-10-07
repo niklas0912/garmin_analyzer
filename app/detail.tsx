@@ -280,10 +280,6 @@ function logger (){
           <TouchableOpacity style={s.filterToggle} onPress={openTypePicker}>
             <Text style={s.filterToggleText}>Workout-Typ ändern</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.filterToggle} onPress={logger}>
-            <Text> logger</Text>
-            
-          </TouchableOpacity>
         </View>
 
         {/* Tabellenkopf für die Lap-Liste */}
