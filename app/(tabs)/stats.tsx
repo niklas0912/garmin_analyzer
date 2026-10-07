@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity,
   useWindowDimensions,
@@ -9,9 +9,9 @@ import { BarChart } from 'react-native-gifted-charts';
 
 // ANPASSEN: Funktionsnamen an eure echten Exporte aus storage.ts angleichen
 // (z.B. loadAllWorkouts, loadWorkoutTypes o.ä.)
-import { loadEquipment, Sport } from '../../utils/equipment';
+import { loadEquipment } from '../../utils/equipment';
 import { loadAllWorkouts, loadWorkoutTypes } from '../../utils/storage';
-import { DateRange, RangePreset } from '../../utils/types';
+import { DateRange, RangePreset, Sport } from '../../utils/types';
 import { computeWeeklyVolume, presetToRange } from '../../utils/weeklyVolume';
 
 const ACCENT = '#C8F135';
@@ -78,7 +78,8 @@ export default function StatsScreen() {
     }, [])
   );
 
-  useEffect(() => {
+useFocusEffect(
+  useCallback(() => {
     let cancelled = false;
     async function run() {
       const [workouts, types] = await Promise.all([loadAllWorkouts(), loadWorkoutTypes()]);
@@ -98,7 +99,9 @@ export default function StatsScreen() {
     return () => {
       cancelled = true;
     };
-  }, [sport, preset, customRange]);
+  }, [sport, preset, customRange])
+);
+
   // Fensterbreite minus horizontalem Padding von .list (16*2) und .settingsCard (12*2)
   const chartWidth = windowWidth - 16 * 2 - 12 * 2;
   const barCount = weeklyData.length || 1;
