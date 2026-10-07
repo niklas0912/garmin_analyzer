@@ -1,0 +1,2 @@
+# debug buid
+   APP_VARIANT=development npx expo run:android

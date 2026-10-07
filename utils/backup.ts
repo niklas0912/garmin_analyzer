@@ -15,6 +15,7 @@ import type { Session } from './types';
 const BACKUP_VERSION = 1;
 const WORKOUT_TYPES_KEY = 'workout_types_v1';
 const FIT_FILES_DIR = new Directory(Paths.document, 'fit-files');
+const EQUIPMENT_KEY = 'equipment_v1';
 
 interface BackupFile {
   version: number;
@@ -23,6 +24,8 @@ interface BackupFile {
   sessions: Session[];
   // sessionId -> base64-encoded contents of the .fit file
   fitFiles: Record<string, string>;
+  equipment?: unknown; // optional, fehlt in Backups mit version 1
+
 }
 
 /**
@@ -48,10 +51,14 @@ export async function exportBackup(): Promise<void> {
     }
   }
 
+
+  const equipmentRaw = await AsyncStorage.getItem(EQUIPMENT_KEY);
+const equipment = equipmentRaw ? JSON.parse(equipmentRaw) : [];
   const backup: BackupFile = {
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
     workoutTypes,
+      equipment,
     sessions,
     fitFiles,
   };
@@ -99,9 +106,9 @@ export async function importBackup(): Promise<number> {
   const raw = await pickedFile.text();
   const backup = JSON.parse(raw) as BackupFile;
 
-  if (backup.version !== BACKUP_VERSION) {
-    throw new Error(`Unsupported backup version: ${backup.version}`);
-  }
+  // if (backup.version >= BACKUP_VERSION) {
+  //   throw new Error(`Unsupported backup version: ${backup.version}`);
+  // }
 
   if (!FIT_FILES_DIR.exists) {
     FIT_FILES_DIR.create({ intermediates: true });
@@ -111,6 +118,9 @@ export async function importBackup(): Promise<number> {
   if (backup.workoutTypes) {
     await AsyncStorage.setItem(WORKOUT_TYPES_KEY, JSON.stringify(backup.workoutTypes));
   }
+  if (backup.equipment) {
+  await AsyncStorage.setItem(EQUIPMENT_KEY, JSON.stringify(backup.equipment));
+}
 
   let restoredCount = 0;
 

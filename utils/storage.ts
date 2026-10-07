@@ -186,12 +186,17 @@ export async function deleteAllWorkouts(): Promise<void> {
 export async function reparseAndUpdateWorkout(workout: Session): Promise<Session> {
   const reparsedSession: Session = await parseFitFile(workout.fitFileUri, workout.woType);
   reparsedSession.id = workout.id; // ID des Original-Workouts erzwingen
+  reparsedSession.equipmentId = workout.equipmentId; // Session-Equipment behalten
 
-  const oldFastByIndex = new Map(workout.laps.map(lap => [lap.index, lap.isFast]));
-  reparsedSession.laps = reparsedSession.laps.map(lap => ({
-    ...lap,
-    isFast: oldFastByIndex.get(lap.index) ?? false,
-  }));
+  const oldLapsByIndex = new Map(workout.laps.map(lap => [lap.index, lap]));
+  reparsedSession.laps = reparsedSession.laps.map(lap => {
+    const old = oldLapsByIndex.get(lap.index);
+    return {
+      ...lap,
+      isFast: old?.isFast ?? false,
+      equipmentId: old?.equipmentId,
+    };
+  });
 
   await updateWorkout(reparsedSession);
   return reparsedSession;
