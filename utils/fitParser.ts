@@ -369,9 +369,9 @@ function parseFit(buffer: ArrayBuffer): ParsedFit {
           fieldOffset += f.fieldSize;
         }
 
-        if (lap.lap_trigger === 0  || lap.lap_trigger === 7) {
+        // if (lap.lap_trigger === 0  || lap.lap_trigger === 7  || lap.lap_trigger === 1  || lap.lap_trigger === 2) {
           laps.push(lap);
-        }
+        // }
       }
 
       offset = msgStart + def.size;

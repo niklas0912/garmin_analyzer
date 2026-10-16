@@ -257,6 +257,25 @@ export async function saveDayNote(date: string, note: string): Promise<void> {
   await AsyncStorage.setItem(NOTES_KEY, JSON.stringify(notes));
 }
 
+
+const CalendarWorkoutInfoKey = 'calendar_workoutInfoKey_v1';
+
+export async function loadCalendarWorkoutInfo(): Promise<Record<string, string>> {
+  const raw = await AsyncStorage.getItem(CalendarWorkoutInfoKey);
+  return raw ? JSON.parse(raw) : {};
+}
+
+export async function saveCalendarWorkoutInfo(date: string, note: string): Promise<void> {
+  const notes = await loadCalendarWorkoutInfo();
+  if (note.trim().length === 0) {
+    delete notes[date];
+  } else {
+    notes[date] = note;
+  }
+  await AsyncStorage.setItem(CalendarWorkoutInfoKey, JSON.stringify(notes));
+}
+
+
 export async function updateWorkoutType(
   oldType: WorkoutType,
   newType: WorkoutType

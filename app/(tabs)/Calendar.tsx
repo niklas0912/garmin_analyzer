@@ -3,14 +3,14 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from 'react-native';
 import { dateKey, groupSessionsByDate, weekDistance, weekDuration } from '../../utils/sessionStats';
-import { loadAllWorkouts, loadDayNotes, loadWorkoutTypes, saveDayNote } from '../../utils/storage';
+import { loadAllWorkouts, loadCalendarWorkoutInfo, loadDayNotes, loadWorkoutTypes, saveCalendarWorkoutInfo, saveDayNote } from '../../utils/storage';
 import { Session, WorkoutType } from '../../utils/types';
 const COLORS = { bg: '#0D0D0D', card: '#1A1A1A', accent: '#C8F135', text: '#FFFFFF', muted: '#8A8A8A' };
 
 function getMonthGrid(year: number, month: number): Date[][] {
   const first = new Date(year, month, 1);
   const startOffset = (first.getDay() + 6) % 7; // Montag = 0
-  const gridStart = new Date(year, month, 1 - startOffset);
+  const gridStart = new Date(year, month, 1-14 - startOffset);
   const weeks: Date[][] = [];
   let cursor = new Date(gridStart);
   while (cursor.getMonth() === month || weeks.length < 6) {
@@ -20,12 +20,21 @@ function getMonthGrid(year: number, month: number): Date[][] {
       cursor.setDate(cursor.getDate() + 1);
     }
     weeks.push(week);
-    if (cursor.getMonth() !== month && cursor > first) break;
-  }
+    if (cursor.getMonth() !== month && cursor > first) {
+    const week2: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      week2.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    weeks.push(week2);
+      break;
+  }}
   return weeks;
 }
 
 export default function CalendarScreen() {
+  const [calendarWorkoutInfos, setcalendarWorkoutInfos] =   useState<Record<string, string>>({});
+
   const [current, setCurrent] = useState(new Date());
   const [byDate, setByDate] = useState<Record<string, Session[]>>({});
   const [types, setTypes] = useState<WorkoutType[]>([]);
@@ -50,9 +59,11 @@ const panResponder = useRef(
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const [sessions, workoutTypes] = await Promise.all([loadAllWorkouts(), loadWorkoutTypes()]);
+        const [sessions, workoutTypes, calendarInfos] = await Promise.all([loadAllWorkouts(), loadWorkoutTypes(), loadCalendarWorkoutInfo()]);
         setByDate(groupSessionsByDate(sessions));
         setTypes(workoutTypes);
+        setcalendarWorkoutInfos(calendarInfos);
+
       })();
     }, [])
   );
@@ -60,6 +71,9 @@ const panResponder = useRef(
   const year = current.getFullYear();
   const month = current.getMonth();
   const weeks = getMonthGrid(year, month);
+  const reloadCalendarInfos = useCallback(async () => {
+  setcalendarWorkoutInfos(await loadCalendarWorkoutInfo());
+}, []);
 
   const colorFor = (name: string) => types.find(t => t.name === name)?.color ?? COLORS.accent;
 
@@ -94,9 +108,14 @@ const panResponder = useRef(
                     {daySessions.map(s => (
                       <View key={s.id} style={[styles.dot, { backgroundColor: colorFor(s.name) }]}>
                         <Text style={styles.dotText} numberOfLines={1}>
-                          {s.name.split(' ')[1] ?? s.name}
+                          {s.name.split(' ')[1] ?? s.name} 
                         </Text>
-                      </View>
+                        {key && (
+                        <Text style={styles.dotText} numberOfLines={1}>
+                          {calendarWorkoutInfos[key]}
+                        </Text>
+                        )}
+                      </View> 
                     ))}
                   </Pressable>
                 );
@@ -118,12 +137,14 @@ const panResponder = useRef(
           );
         })}
       </ScrollView>
-
+ 
       {selectedDate && (
         <DayDetailSheet
           date={selectedDate}
           sessions={byDate[selectedDate] ?? []}
           onClose={() => setSelectedDate(null)}
+            onSaved={reloadCalendarInfos}
+
         />
       )}
     </View>
@@ -132,18 +153,32 @@ const panResponder = useRef(
 
 
 
-function DayDetailSheet({ date, sessions, onClose }: { date: string; sessions: Session[]; onClose: () => void }) {
+function DayDetailSheet({ date, sessions, onClose, onSaved }: {
+  date: string; sessions: Session[]; onClose: () => void; onSaved: () => void;
+}) {
   const [note, setNote] = useState('');
+  const [workoutInfo, setWorkoutInfo] = useState('');
 
   useEffect(() => {
     loadDayNotes().then(notes => setNote(notes[date] ?? ''));
+    loadCalendarWorkoutInfo().then(infos => setWorkoutInfo(infos[date] ?? ''));
   }, [date]);
 
+  const saveAll = async () => {
+    await saveDayNote(date, note);
+    await saveCalendarWorkoutInfo(date, workoutInfo);
+    onSaved();
+  };
+
+  const handleClose = async () => {
+    await saveAll();
+    onClose();
+  };
   return (
     <View style={styles.sheet}>
       <View style={styles.sheetHeader}>
         <Text style={styles.sheetTitle}>{new Date(date).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
-        <Pressable onPress={onClose}><Ionicons name="close" size={24} color={COLORS.text} /></Pressable>
+        <Pressable onPress={handleClose}><Ionicons name="close" size={24} color={COLORS.text} /></Pressable>
       </View>
 
       {sessions.length === 0 && <Text style={styles.muted}>No workout on this day.</Text>}
@@ -154,7 +189,10 @@ function DayDetailSheet({ date, sessions, onClose }: { date: string; sessions: S
           <Pressable
             key={s.id}
             style={styles.sessionRow}
-            onPress={() => { onClose(); router.push({ pathname: '/detail', params: { sessionId: s.id } }); }}
+            onPress={async () => {
+              await handleClose();
+              router.push({ pathname: '/detail', params: { sessionId: s.id } }); 
+             }}
           >
             <Text style={styles.sessionType}>{s.name}</Text>
             <Text style={styles.sessionDistance}>{distanceKm} km</Text>
@@ -171,6 +209,17 @@ function DayDetailSheet({ date, sessions, onClose }: { date: string; sessions: S
         onChangeText={setNote}
         onBlur={() => saveDayNote(date, note)}
         placeholder="Add a note for this day..."
+        placeholderTextColor={COLORS.muted}
+      />
+
+      <Text style={styles.label}>Additional workout info</Text>
+      <TextInput
+        style={styles.notesInput}
+        multiline
+        value={workoutInfo}
+        onChangeText={setWorkoutInfo}
+        onBlur={() => saveCalendarWorkoutInfo(date, workoutInfo)}
+        placeholder="Add additional info which is shown in the calendar"
         placeholderTextColor={COLORS.muted}
       />
     </View>
@@ -205,7 +254,7 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     flex: 1,
-    minHeight: 80,
+    minHeight: 70,
     padding: 4,
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: '#2A2A2A',
@@ -223,7 +272,7 @@ const styles = StyleSheet.create({
   },
   dotText: {
     color: '#0D0D0D',
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: '600',
   },
   weekSummary: {
@@ -311,10 +360,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     },
     ionicon: {
+      color: COLORS.muted,
       fontSize:14,
       paddingBottom:5
     },
     bike: {
+      color: COLORS.muted,
       fontSize:18,
       fontWeight:800,
       paddingBottom:3

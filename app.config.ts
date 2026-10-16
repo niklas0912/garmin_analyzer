@@ -1,4 +1,4 @@
-import { ExpoConfig, ConfigContext } from 'expo/config';
+import { ConfigContext, ExpoConfig } from 'expo/config';
 
 const IS_DEV = process.env.APP_VARIANT === 'development';
 
@@ -60,4 +60,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   owner: 'n1k1as0912s-team',
+  runtimeVersion: { policy: 'appVersion' },
+updates: {
+  url: 'https://u.expo.dev/c5f23b8d-92c2-47d8-aad5-4308f8f9107a',
+},
 });
