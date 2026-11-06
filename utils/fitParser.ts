@@ -49,6 +49,10 @@ type ParsedFit = {
   laps: RawLap[];
   sessionDate: Date | null;
   average_temp: number | null;
+  avgHF: number| null;
+  maxHF: number| null;
+  avgPower: number | null;
+  maxPower: number| null;
 };
 
 
@@ -146,6 +150,10 @@ function parseFit(buffer: ArrayBuffer): ParsedFit {
   let sessionDate: Date | null = null;
 
   const temps: number[] = [];
+  let avgHF: number| null = null;
+  let avgPower:number| null = null;
+  let maxHF: number| null = null;
+  let maxPower: number| null = null;
 
   while (offset < buffer.byteLength - 2) {
     const recordHeader = view.getUint8(offset);
@@ -300,15 +308,29 @@ function parseFit(buffer: ArrayBuffer): ParsedFit {
             def.littleEndian
           );
 
-          if (
-            f.fieldNum === 253 &&
-            val > 0
-          ) {
-            sessionDate = new Date(
-              (val + 631065600) * 1000
-            );
-          }
-
+          switch (f.fieldNum) {
+            case 253:
+            if (val > 0){
+               sessionDate = new Date(
+                 (val + 631065600) * 1000
+            );}
+            case 42:
+            if (val > 0) {
+               avgHF=val;
+            }
+            case 43:
+            if (val > 0) {
+               maxHF=val;
+            }
+            case 24:
+            if (val > 0) {
+               avgPower=val;
+            }            
+            case 25:
+            if (val > 0) {
+               maxPower=val;
+            }
+        }
           fieldOffset += f.fieldSize;
         }
       }
@@ -393,6 +415,10 @@ function parseFit(buffer: ArrayBuffer): ParsedFit {
     laps,
     sessionDate,
     average_temp,
+    avgHF,
+    maxHF,
+    avgPower,
+    maxPower
   };
 }
 
@@ -437,15 +463,14 @@ console.log()
     laps: rawLaps,
     sessionDate,
     average_temp,
+    avgHF,
+    maxHF,
+    avgPower,
+    maxPower,
   } = parseFit(buffer);
 
   const laps: Lap[] = rawLaps.map(
     (lap: RawLap, i: number): Lap => {
-
-
-
-     
-
       return {
         index: i + 1,
 
@@ -490,22 +515,20 @@ console.log()
 
   return {
     name: workout.name,
-
     date:
       sessionDate ||
       new Date(),
-
     laps,
-
     temperature:
       average_temp,
-
     id:
       `${workout.name}_${Date.now()}`,
-
     fitFileUri: uri,
-
-    woType: workout
+    woType: workout,
+    avgHF: avgHF || 0,
+    maxHF: maxHF || 0,
+    avgPower: avgPower || 0,
+    maxPower: maxPower || 0,
   };
 }
 
