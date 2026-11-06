@@ -1,2 +1,11 @@
 # debug buid
    APP_VARIANT=development npx expo run:android
+
+
+
+# build android version
+source  ~/.zshrc 
+eas build --profile production --platform android
+
+# update android version
+eas update --channel production --message "Y-Achse einstellbar"

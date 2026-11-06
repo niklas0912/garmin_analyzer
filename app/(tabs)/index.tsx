@@ -134,7 +134,7 @@ function handleDelete(wt: WorkoutType) {
         />
                 <TextInput
           style={s.input}
-          placeholder="sports"
+          placeholder="running bike indoor-bike "
           placeholderTextColor="#555555"
           value={newSports}
           onChangeText={setNewSports}
@@ -165,7 +165,7 @@ const s = StyleSheet.create({
   addRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
 input: {
   flex: 1, backgroundColor: '#1A1A1A', borderRadius: 8,
-  padding: 12, color: '#F0F0F0', borderWidth: 1, borderColor: '#2E2E2E',
+  padding: 12, fontSize: 10,color: '#F0F0F0', borderWidth: 1, borderColor: '#2E2E2E',
 },
 addButton: {
   backgroundColor: '#222222', borderRadius: 8, paddingHorizontal: 20,

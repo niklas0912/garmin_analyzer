@@ -49,7 +49,7 @@ export interface WeekVolume {
   minutes: number;
 }
 
-export type Sport = 'running' | 'bike' | "other";
+export type Sport = 'running' | 'bike' | "indoor-bike" |"other";
 
 export interface Equipment {
   id: string;

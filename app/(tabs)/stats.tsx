@@ -193,7 +193,7 @@ useFocusEffect(
                 frontColor={ACCENT}
                 yAxisTextStyle={{ color: '#888' }}
                 xAxisLabelTextStyle={{ color: '#888', fontSize: 10, }}
-                labelWidth={15}
+                labelWidth={18}
                 xAxisLabelsVerticalShift={2}
                 noOfSections={4}
                 rulesColor="#2A2A2A"

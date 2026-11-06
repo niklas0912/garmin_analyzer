@@ -18,6 +18,14 @@ export function groupSessionsByDate(sessions: Session[]): Record<string, Session
   }, {} as Record<string, Session[]>);
 }
 
+// export function groupNotesByDate(notes: String[]): Record<string, String[]> {
+//   return notes.reduce((acc, s) => {
+//     const key = dateKey(new Date(s.date));
+//     (acc[key] ??= []).push(s);
+//     return acc;
+//   }, {} as Record<string, Session[]>);
+// }
+
 // Summe über alle Laps aller Sessions einer Woche
 export function weekDistance(sessions: Session[], sports:Sport): number {
   return sessions.filter(s => s.woType.sports === sports).reduce(
