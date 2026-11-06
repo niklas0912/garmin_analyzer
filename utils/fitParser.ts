@@ -314,21 +314,25 @@ function parseFit(buffer: ArrayBuffer): ParsedFit {
                sessionDate = new Date(
                  (val + 631065600) * 1000
             );}
-            case 42:
+            case 16:
             if (val > 0) {
                avgHF=val;
+               break;
             }
-            case 43:
+            case 17:
             if (val > 0) {
                maxHF=val;
+               break;
             }
-            case 24:
+            case 20:
             if (val > 0) {
                avgPower=val;
+               break;
             }            
-            case 25:
+            case 21:
             if (val > 0) {
                maxPower=val;
+               break;
             }
         }
           fieldOffset += f.fieldSize;
